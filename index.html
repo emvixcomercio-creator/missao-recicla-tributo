@@ -120,6 +120,38 @@
     border:2px solid var(--inesfa-blue); box-shadow:none;
   }
 
+  /* ===================== CADASTRO (identidade visual INESFA) ===================== */
+  #screen-cadastro{ justify-content:center; background:#ffffff; }
+  #screen-cadastro .menu-logo{ width:48cqw; max-width:210px; margin-bottom:2.4cqh; }
+  .cadastro-title{
+    text-align:center; font-size:clamp(20px,4.4cqh,28px); font-weight:800;
+    color:var(--inesfa-blue); text-transform:uppercase; margin-bottom:0.8cqh;
+  }
+  .cadastro-subtitle{
+    text-align:center; color:#5b6b7a; font-size:clamp(13px,2cqh,15px); font-weight:500;
+    max-width:320px; margin:0 auto 3cqh; line-height:1.5;
+  }
+  .cadastro-form{ width:100%; max-width:420px; display:flex; flex-direction:column; gap:16px; }
+  .field-group{ display:flex; flex-direction:column; gap:6px; text-align:left; }
+  .field-label{
+    font-size:clamp(12px,1.8cqh,14px); font-weight:700; color:var(--inesfa-blue);
+    text-transform:uppercase; letter-spacing:0.5px;
+  }
+  .field-input{
+    width:100%; font-family:inherit; font-size:clamp(15px,2.4cqh,17px); font-weight:600;
+    color:#1a2b3c; background:#f6f9fb; border:2px solid #dbe6ee; border-radius:14px;
+    padding:1.6cqh 4cqw; outline:none;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .field-input:focus{ border-color:var(--inesfa-blue); background:#ffffff; }
+  .field-input.invalid{ border-color:var(--red); background:#fff3f3; }
+  .field-error{ display:none; font-size:clamp(11px,1.6cqh,13px); font-weight:700; color:var(--red); }
+  .field-error.show{ display:block; }
+  #screen-cadastro .btn{
+    color:#fff; background:linear-gradient(135deg, var(--inesfa-green), var(--inesfa-green-dark));
+    box-shadow:0 10px 22px rgba(47,158,82,0.3); margin-top:0.8cqh;
+  }
+
   /* ===================== TOP BAR / INSTRUÇÕES ===================== */
   .top-bar{
     width:100%; max-width:460px;
@@ -400,8 +432,33 @@
 <body>
 <div id="app">
 
+  <!-- ===================== CADASTRO ===================== -->
+  <section class="screen active" id="screen-cadastro">
+    <img class="menu-logo" src="assets/logo-inesfa.png" alt="INESFA - Instituto Nacional da Reciclagem">
+    <h1 class="cadastro-title">Antes de jogar</h1>
+    <p class="cadastro-subtitle">Preencha seus dados para participar da Missão Recicla Tributo.</p>
+    <form class="cadastro-form" id="cadastroForm" novalidate>
+      <div class="field-group">
+        <label class="field-label" for="campoNome">Nome</label>
+        <input class="field-input" type="text" id="campoNome" placeholder="Seu nome completo" autocomplete="off">
+        <div class="field-error" id="erroNome">Digite seu nome.</div>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="campoTelefone">Telefone</label>
+        <input class="field-input" type="tel" id="campoTelefone" placeholder="(00) 00000-0000" autocomplete="off">
+        <div class="field-error" id="erroTelefone">Digite um telefone válido.</div>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="campoEmail">E-mail</label>
+        <input class="field-input" type="email" id="campoEmail" placeholder="seu@email.com" autocomplete="off">
+        <div class="field-error" id="erroEmail">Digite um e-mail válido.</div>
+      </div>
+      <button type="submit" class="btn block">CONTINUAR</button>
+    </form>
+  </section>
+
   <!-- ===================== MENU ===================== -->
-  <section class="screen active" id="screen-menu">
+  <section class="screen" id="screen-menu">
     <img class="menu-logo" src="assets/logo-inesfa.png" alt="INESFA - Instituto Nacional da Reciclagem">
     <h1 class="game-title">
       <span class="title-line blue">Missão</span>
@@ -410,7 +467,7 @@
     <div class="menu-divider"></div>
     <p class="game-subtitle">Limpe o caminho da reciclagem: descarte a burocracia antiga e colete os bônus da nova Reforma Tributária pra fazer a economia circular girar.</p>
     <div class="menu-actions">
-      <button class="btn block" onclick="goTo('instructions')">INICIAR MISSÃO</button>
+      <button class="btn block" onclick="handleIniciarDesafio()">INICIAR MISSÃO</button>
       <button class="btn secondary block" onclick="goTo('ranking')">VER RANKING DO DIA</button>
     </div>
   </section>
@@ -534,6 +591,7 @@
 function goTo(key){
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active','fade-in'));
   const map = {
+    'cadastro':'screen-cadastro',
     'menu':'screen-menu',
     'instructions':'screen-instructions',
     'game':'screen-game',
@@ -550,6 +608,75 @@ function exitGame(){
   stopGame(true);
   goTo('menu');
 }
+
+/* =========================================================
+   CADASTRO (captura de lead antes do jogo)
+========================================================= */
+const CADASTRO_KEY = 'reciclaTributoCadastros';
+let jogadorRegistrado = false;
+let currentPlayerName = '';
+
+function handleIniciarDesafio(){
+  if(jogadorRegistrado){
+    jogadorRegistrado = false;
+    goTo('instructions');
+  } else {
+    goTo('cadastro');
+  }
+}
+
+function validarEmail(email){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validarTelefone(tel){
+  const digits = tel.replace(/\D/g, '');
+  return digits.length >= 10 && digits.length <= 11;
+}
+
+function salvarCadastro(nome, telefone, email){
+  let lista = [];
+  try{
+    lista = JSON.parse(localStorage.getItem(CADASTRO_KEY)) || [];
+  } catch(e){ lista = []; }
+  lista.push({ nome, telefone, email, data: new Date().toISOString() });
+  localStorage.setItem(CADASTRO_KEY, JSON.stringify(lista));
+}
+
+document.getElementById('cadastroForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const nomeEl = document.getElementById('campoNome');
+  const telEl = document.getElementById('campoTelefone');
+  const emailEl = document.getElementById('campoEmail');
+
+  const nome = nomeEl.value.trim();
+  const telefone = telEl.value.trim();
+  const email = emailEl.value.trim();
+
+  const nomeValido = nome.length >= 2;
+  const telValido = validarTelefone(telefone);
+  const emailValido = validarEmail(email);
+
+  nomeEl.classList.toggle('invalid', !nomeValido);
+  document.getElementById('erroNome').classList.toggle('show', !nomeValido);
+  telEl.classList.toggle('invalid', !telValido);
+  document.getElementById('erroTelefone').classList.toggle('show', !telValido);
+  emailEl.classList.toggle('invalid', !emailValido);
+  document.getElementById('erroEmail').classList.toggle('show', !emailValido);
+
+  if(!nomeValido || !telValido || !emailValido) return;
+
+  salvarCadastro(nome, telefone, email);
+  jogadorRegistrado = true;
+  currentPlayerName = nome;
+  nomeEl.value = '';
+  telEl.value = '';
+  emailEl.value = '';
+  [nomeEl, telEl, emailEl].forEach(el => el.classList.remove('invalid'));
+  document.querySelectorAll('#cadastroForm .field-error').forEach(el => el.classList.remove('show'));
+
+  goTo('menu');
+});
 
 /* =========================================================
    CONTEÚDO DOS BLOCOS
@@ -655,7 +782,7 @@ function endGame(){
   document.getElementById('resultBonus').textContent = state.bonus;
   document.getElementById('resultDescarte').textContent = state.descarte;
   document.getElementById('resultTravas').textContent = state.travas;
-  saveRankingEntry(finalScore, state.bonus, state.descarte, state.travas);
+  saveRankingEntry(finalScore, state.bonus, state.descarte, state.travas, currentPlayerName);
   goTo('results');
 }
 
@@ -954,11 +1081,11 @@ function loadRanking(){
   }
 }
 
-function saveRankingEntry(score, bonus, descarte, travas){
+function saveRankingEntry(score, bonus, descarte, travas, nome){
   const data = loadRanking();
   const now = new Date();
   const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
-  data.entries.push({ score, bonus, descarte, travas, time });
+  data.entries.push({ score, bonus, descarte, travas, time, nome: nome || 'Jogador' });
   data.entries.sort((a,b) => b.score - a.score);
   data.entries = data.entries.slice(0, 10);
   localStorage.setItem(RANKING_KEY, JSON.stringify(data));
@@ -980,7 +1107,7 @@ function renderRanking(){
     row.innerHTML = `
       <div class="rank-pos">${i+1}º</div>
       <div class="rank-info">
-        <div class="rank-name">Agente da Reforma</div>
+        <div class="rank-name">${entry.nome || 'Jogador'}</div>
         <div class="rank-time">${entry.time} · ${entry.bonus} bônus</div>
       </div>
       <div class="rank-score">${entry.score}</div>
