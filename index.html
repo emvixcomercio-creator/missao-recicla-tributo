@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Missão Recicla Tributo | INESFA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  :root{
+    --steel:#4a555f;
+    --steel-dark:#262e35;
+    --steel-darker:#161b20;
+    --ember:#ff8a2b;
+    --ember-dark:#c94a10;
+    --red:#ff2d55;
+    --green:#2ee06f;
+    --gold:#ffce33;
+    --inesfa-blue:#1b4f91;
+    --inesfa-green:#2f9e52;
+    --inesfa-green-dark:#1f7a3d;
+    --text:#f5f0ff;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html,body{
+    width:100%; height:100%;
+    overflow:hidden;
+    font-family:'Segoe UI', -apple-system, Roboto, Arial, sans-serif;
+    background:#000;
+    color:var(--text);
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:none;
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+
+  /* ===================== SIMULADOR DE TOTEM (9:16) ===================== */
+  #app{
+    position:relative;
+    width:min(450px, calc(100vw - 40px), calc((100vh - 40px) * 9 / 16));
+    height:min(800px, calc(100vh - 40px), calc((100vw - 40px) * 16 / 9));
+    container-type:size;
+    container-name:totem;
+    overflow:hidden;
+    border-radius:28px;
+    box-shadow:
+      0 0 0 10px #0b0b10,
+      0 0 0 12px #232232,
+      0 30px 90px rgba(0,0,0,0.75);
+    background:#0b0e13;
+  }
+
+  .screen{
+    position:absolute; inset:0;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    z-index:1;
+    padding:2.2cqh 4cqw;
+    overflow-y:auto;
+  }
+  .screen.active{ display:flex; }
+  .screen.fade-in{ animation:fadeIn .4s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+  .btn{
+    position:relative;
+    border:none; outline:none; cursor:pointer;
+    font-family:inherit; font-weight:900;
+    letter-spacing:1.5px; text-transform:uppercase;
+    border-radius:100px;
+    padding:2.4cqh 9cqw; font-size:clamp(18px,3cqh,25px);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:active{ transform:translateY(3px) scale(0.98); }
+  .btn.block{ width:100%; max-width:440px; }
+
+  /* ===================== MENU (identidade visual INESFA) ===================== */
+  #screen-menu{ justify-content:center; background:#ffffff; }
+  .menu-logo{ width:58cqw; max-width:250px; height:auto; margin-bottom:2.6cqh; }
+  .menu-divider{
+    width:64px; height:4px; border-radius:4px;
+    background:linear-gradient(90deg, var(--inesfa-green), var(--inesfa-blue));
+    margin:0 auto 2.6cqh;
+  }
+  .brand-name{
+    font-size:clamp(14px,2.2cqh,17px);
+    font-weight:800; letter-spacing:3px; text-transform:uppercase;
+    color:var(--inesfa-blue);
+  }
+  .game-title{
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    font-size:clamp(24px,5.4cqh,36px);
+    font-weight:800; line-height:1.1; text-transform:uppercase;
+    margin-bottom:1.4cqh;
+  }
+  .title-line.blue{ color:var(--inesfa-blue); }
+  .title-line.green{ color:var(--inesfa-green); }
+  .game-subtitle{
+    text-align:center; color:#5b6b7a;
+    font-size:clamp(14px,2.2cqh,17px); font-weight:500;
+    max-width:320px; margin:0 auto 3.6cqh; line-height:1.55;
+  }
+  .menu-actions{ display:flex; flex-direction:column; gap:16px; width:100%; align-items:center; }
+  #screen-menu .btn{
+    color:#fff;
+    background:linear-gradient(135deg, var(--inesfa-green), var(--inesfa-green-dark));
+    box-shadow:0 10px 22px rgba(47,158,82,0.3);
+  }
+  #screen-menu .btn.secondary{
+    color:var(--inesfa-blue); background:#fff;
+    border:2px solid var(--inesfa-blue); box-shadow:none;
+  }
+
+  /* ===================== TOP BAR / INSTRUÇÕES ===================== */
+  .top-bar{
+    width:100%; max-width:460px;
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:1.4cqh;
+  }
+  .icon-btn{
+    background:#eef3f8; border:2px solid var(--inesfa-blue); color:var(--inesfa-blue);
+    width:44px; height:44px; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:19px; font-weight:900; cursor:pointer;
+  }
+  .icon-btn:active{ transform:scale(0.9); }
+
+  #screen-instructions{ background:#ffffff; }
+  .rules-box{
+    width:100%; max-width:460px;
+    background:#f6f9fb; border:1px solid #dbe6ee; border-radius:24px;
+    padding:2.6cqh 5cqw; margin-top:1cqh;
+    box-shadow:0 8px 24px rgba(27,79,145,0.08);
+  }
+  .rule-row{
+    display:flex; align-items:flex-start; gap:14px; margin-bottom:2.2cqh;
+    font-size:clamp(13px,2.1cqh,15px); color:#3a4a58; font-weight:600; line-height:1.5;
+  }
+  .rule-row:last-child{ margin-bottom:0; }
+  .rule-icon{
+    min-width:44px; height:44px; border-radius:13px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .rule-icon.green{ background:rgba(47,158,82,0.14); color:var(--inesfa-green-dark); }
+  .rule-icon.red{ background:rgba(214,59,59,0.14); color:#c92e3c; }
+  .rule-icon.blue{ background:rgba(27,79,145,0.12); color:var(--inesfa-blue); }
+  .rule-row strong{ color:var(--inesfa-blue); }
+  #screen-instructions .btn{
+    color:#fff;
+    background:linear-gradient(135deg, var(--inesfa-green), var(--inesfa-green-dark));
+    box-shadow:0 10px 22px rgba(47,158,82,0.3);
+  }
+
+  /* ===================== GAME SCREEN (fábrica de reciclagem) ===================== */
+  #screen-game{ padding:0; overflow:hidden; }
+
+  .game-bg{
+    position:absolute; inset:0; z-index:0;
+    background:linear-gradient(180deg, var(--steel-darker) 0%, var(--steel-dark) 55%, var(--steel-dark) 100%);
+  }
+
+  .hud-lcd{ position:absolute; z-index:20; left:4%; top:3%; display:flex; flex-direction:column; gap:1.1cqh; }
+  .lcd-panel{
+    background:#0c1015; border-radius:12px; border:2px solid #2a333c;
+    padding:0.7cqh 3cqw;
+    box-shadow:inset 0 0 12px rgba(0,0,0,0.6), 0 6px 14px rgba(0,0,0,0.35);
+  }
+  .lcd-label{
+    font-size:clamp(9px,1.5cqh,12px); font-weight:800; letter-spacing:2px; text-transform:uppercase; color:#fff;
+    margin-bottom:0.15cqh;
+  }
+  .lcd-value{
+    font-family:'Courier New', Consolas, monospace; font-weight:900;
+    font-size:clamp(20px,4cqh,28px); line-height:1; letter-spacing:1.5px;
+  }
+  .lcd-value.time{ color:#ff3b3b; text-shadow:0 0 10px rgba(255,59,59,0.75); }
+  .lcd-value.time.warn{ animation:lcdWarn .5s ease-in-out infinite; }
+  @keyframes lcdWarn{ 0%,100%{ opacity:1; } 50%{ opacity:0.35; } }
+  .lcd-value.score{ color:#ffe14d; text-shadow:0 0 10px rgba(255,225,77,0.75); }
+  .lcd-value.speed{ color:#5fd4ff; text-shadow:0 0 10px rgba(95,212,255,0.75); font-size:clamp(16px,3cqh,22px); }
+
+  .ov-gear{
+    position:absolute; right:4%; top:3%; width:9cqw; height:9cqw; border-radius:50%;
+    z-index:20; cursor:pointer;
+    background:rgba(0,0,0,0.35); border:2px solid rgba(255,255,255,0.4);
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(16px,3cqh,20px); color:#fff;
+  }
+  .ov-gear:active{ background:rgba(0,0,0,0.55); }
+
+  /* faixas verticais da esteira, onde os blocos caem */
+  .belt-area{
+    position:absolute; left:0; right:0; top:15%; height:63%;
+    z-index:5; display:flex;
+  }
+  .lane{
+    position:relative; flex:1 1 0; height:100%;
+    border-left:1px dashed rgba(255,255,255,0.08);
+  }
+  .lane:first-child{ border-left:none; }
+  .lane-track{
+    position:absolute; inset:0;
+    background-image:repeating-linear-gradient(180deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 3px, transparent 3px, transparent 34px);
+    animation:trackScroll 1s linear infinite;
+  }
+  @keyframes trackScroll{ from{ background-position:0 0; } to{ background-position:0 34px; } }
+
+  /* forno, fixo no fim da esteira */
+  .furnace{
+    position:absolute; left:0; right:0; top:78%; height:14%;
+    z-index:6;
+    background:linear-gradient(180deg, var(--steel-darker), #000);
+    border-top:3px solid #000;
+  }
+  .furnace-mouth{
+    position:absolute; left:12%; right:12%; top:14%; bottom:14%;
+    border-radius:50% / 60%;
+    background:radial-gradient(circle at 50% 40%, #fff2c0 0%, var(--ember) 32%, var(--ember-dark) 62%, #3a0f04 100%);
+    box-shadow:0 0 30px rgba(255,138,43,0.65), inset 0 0 20px rgba(0,0,0,0.5);
+    animation:furnaceGlow 1.6s ease-in-out infinite;
+  }
+  @keyframes furnaceGlow{
+    0%,100%{ filter:brightness(1); }
+    50%{ filter:brightness(1.18); }
+  }
+  .furnace-label{
+    position:absolute; left:0; right:0; bottom:2%;
+    text-align:center; font-size:clamp(9px,1.5cqh,11px);
+    font-weight:800; letter-spacing:2px; text-transform:uppercase;
+    color:#ffb974;
+  }
+
+  /* lixeira fixa, alvo do arraste dos blocos vermelhos */
+  .trash-zone{
+    position:absolute; left:4%; top:66%; width:34%; height:14%;
+    z-index:12;
+    border-radius:18px;
+    border:3px dashed rgba(255,45,85,0.55);
+    background:rgba(255,45,85,0.08);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition:background .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .trash-zone svg{ width:34%; height:auto; color:#ff8a9a; }
+  .trash-zone-label{
+    font-size:clamp(9px,1.4cqh,11px); font-weight:800; letter-spacing:1px; text-transform:uppercase;
+    color:#ffb0bd; margin-top:0.3cqh;
+  }
+  .trash-zone.drag-over{
+    background:rgba(255,45,85,0.22);
+    border-color:var(--red);
+    box-shadow:0 0 26px rgba(255,45,85,0.55), inset 0 0 20px rgba(255,45,85,0.3);
+  }
+
+  /* blocos interativos (verde = coletar, vermelho = descartar) */
+  .belt-block{
+    position:absolute;
+    border-radius:14px;
+    padding:1.1cqh 3cqw;
+    text-align:center;
+    z-index:11;
+    cursor:pointer;
+    touch-action:none;
+    box-shadow:0 6px 14px rgba(0,0,0,0.4);
+  }
+  .belt-block .bb-label{
+    font-weight:800; font-size:clamp(11px,1.9cqh,13.5px); line-height:1.2;
+    text-transform:uppercase; letter-spacing:0.3px;
+  }
+  .belt-block.green{
+    background:linear-gradient(160deg, #35d97a, #1f9e57);
+    border:2px solid #b9ffd6;
+    color:#04310f;
+  }
+  .belt-block.red{
+    background:linear-gradient(160deg, #ff5c72, #d81f3d);
+    border:2px solid #ffc7cf;
+    color:#3c0007;
+  }
+  .belt-block.dragging{ box-shadow:0 14px 26px rgba(0,0,0,0.55); }
+  .belt-block.resolved{ pointer-events:none; }
+
+  /* sucata decorativa ambiente, so visual, nao interativa */
+  .scrap-decor{
+    position:absolute; z-index:4; opacity:0.85;
+    pointer-events:none;
+  }
+  .scrap-decor svg{ width:100%; height:100%; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.4)); }
+
+  .float-text{
+    position:absolute; font-weight:900;
+    font-size:clamp(18px,3cqh,24px);
+    -webkit-text-stroke:1.5px rgba(0,0,0,0.5); paint-order:stroke fill;
+    pointer-events:none; z-index:30;
+    animation:floatUp .8s ease forwards;
+  }
+  .float-text.positive{ color:#3ddc63; }
+  .float-text.negative{ color:var(--red); }
+  @keyframes floatUp{
+    from{ transform:translateY(0) scale(1); opacity:1; }
+    to{ transform:translateY(-60px) scale(1.15); opacity:0; }
+  }
+
+  .jam-overlay{
+    position:absolute; inset:0; z-index:25;
+    background:rgba(255,20,40,0.28);
+    opacity:0; pointer-events:none;
+  }
+  .jam-overlay.show{ animation:jamFlash 1.15s ease forwards; }
+  @keyframes jamFlash{
+    0%{ opacity:0; } 12%{ opacity:1; } 80%{ opacity:0.85; } 100%{ opacity:0; }
+  }
+  .jam-callout{
+    position:absolute; left:50%; top:44%; z-index:26;
+    transform:translate(-50%,-50%) scale(0.5);
+    font-weight:900; text-transform:uppercase; letter-spacing:1px;
+    font-size:clamp(20px,4.6cqh,30px);
+    color:#fff; -webkit-text-stroke:2px #7a0010; paint-order:stroke fill;
+    white-space:nowrap; opacity:0; pointer-events:none;
+    text-shadow:0 0 18px rgba(255,20,40,0.9);
+  }
+  .jam-callout.show{ animation:jamCallout 1.15s cubic-bezier(.2,.9,.3,1.2) forwards; }
+  @keyframes jamCallout{
+    0%{ opacity:0; transform:translate(-50%,-50%) scale(0.5); }
+    15%{ opacity:1; transform:translate(-50%,-50%) scale(1.1); }
+    25%{ transform:translate(-50%,-50%) scale(1); }
+    78%{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+    100%{ opacity:0; transform:translate(-50%,-58%) scale(0.92); }
+  }
+
+  .screen-shake{ animation:shake .28s ease; }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-6px); }
+    75%{ transform:translateX(6px); }
+  }
+
+  /* ===================== RESULTADO / RANKING (identidade visual INESFA) ===================== */
+  #screen-results{ justify-content:center; background:#ffffff; }
+  .result-card{
+    width:100%; max-width:440px; background:#f6f9fb; border:1px solid #dbe6ee;
+    border-radius:28px; padding:4cqh 6cqw; text-align:center;
+    box-shadow:0 10px 30px rgba(27,79,145,0.1);
+  }
+  .result-card h2{
+    font-size:clamp(20px,3.8cqh,28px); font-weight:800; text-transform:uppercase;
+    color:var(--inesfa-blue); margin-bottom:2.4cqh;
+  }
+  .result-score{
+    font-family:'Courier New', Consolas, monospace;
+    font-size:clamp(54px,10cqh,80px); font-weight:900; color:var(--inesfa-green); line-height:1;
+    margin-bottom:0.4cqh;
+  }
+  .result-score-label{
+    font-size:clamp(12px,2cqh,14px); color:#6b7c8c; text-transform:uppercase; letter-spacing:3px;
+    font-weight:800; margin-bottom:3cqh;
+  }
+  .result-stats{ display:flex; justify-content:center; gap:5cqw; margin-bottom:3.4cqh; }
+  .result-stats .rs-item{ background:#ffffff; border:2px solid #dbe6ee; border-radius:16px; padding:1.4cqh 4cqw; }
+  .result-stats .rs-item .rs-val{ font-size:clamp(20px,3.3cqh,26px); font-weight:900; }
+  .result-stats .rs-item.bonus .rs-val{ color:var(--inesfa-green); }
+  .result-stats .rs-item.descarte .rs-val{ color:var(--inesfa-blue); }
+  .result-stats .rs-item.travas .rs-val{ color:var(--red); }
+  .result-stats .rs-item .rs-lbl{ font-size:clamp(10px,1.6cqh,12px); color:#6b7c8c; text-transform:uppercase; font-weight:700; letter-spacing:0.5px; }
+  #screen-results .btn{
+    color:#fff; background:linear-gradient(135deg, var(--inesfa-green), var(--inesfa-green-dark));
+    box-shadow:0 10px 22px rgba(47,158,82,0.3);
+  }
+  #screen-results .btn.secondary{ color:var(--inesfa-blue); background:#fff; border:2px solid var(--inesfa-blue); box-shadow:none; }
+
+  #screen-ranking{ background:#ffffff; }
+  #screen-ranking .btn{
+    color:#fff; background:linear-gradient(135deg, var(--inesfa-green), var(--inesfa-green-dark));
+    box-shadow:0 10px 22px rgba(47,158,82,0.3);
+  }
+  .ranking-list{ width:100%; max-width:460px; display:flex; flex-direction:column; gap:12px; margin-top:1.6cqh; }
+  .rank-row{
+    display:flex; align-items:center; gap:14px; background:#f6f9fb; border:2px solid #dbe6ee;
+    border-radius:16px; padding:1.4cqh 4cqw; box-shadow:0 6px 18px rgba(27,79,145,0.08);
+  }
+  .rank-row.top1{ border-color:#e0b400; background:#fff8de; box-shadow:0 6px 18px rgba(224,180,0,0.25); }
+  .rank-row.top2{ border-color:#9fb6c8; background:#f1f5f8; box-shadow:0 6px 18px rgba(27,79,145,0.12); }
+  .rank-row.top3{ border-color:#c98040; background:#fdf1e8; box-shadow:0 6px 18px rgba(201,128,64,0.18); }
+  .rank-pos{ min-width:32px; text-align:center; font-weight:900; font-size:clamp(16px,2.6cqh,20px); color:var(--inesfa-blue); }
+  .rank-info{ flex:1; }
+  .rank-name{ font-weight:800; font-size:clamp(14px,2.2cqh,16px); color:#1a2b3c; }
+  .rank-time{ font-size:clamp(11px,1.6cqh,12px); color:#6b7c8c; font-weight:600; }
+  .rank-score{ font-family:'Courier New', Consolas, monospace; font-weight:900; font-size:clamp(17px,2.8cqh,22px); color:var(--inesfa-green); }
+  .empty-ranking{ color:#6b7c8c; text-align:center; padding:4cqh 0; font-size:15px; font-weight:600; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===================== MENU ===================== -->
+  <section class="screen active" id="screen-menu">
+    <img class="menu-logo" src="assets/logo-inesfa.png" alt="INESFA - Instituto Nacional da Reciclagem">
+    <h1 class="game-title">
+      <span class="title-line blue">Missão</span>
+      <span class="title-line green">Recicla Tributo</span>
+    </h1>
+    <div class="menu-divider"></div>
+    <p class="game-subtitle">Limpe o caminho da reciclagem: descarte a burocracia antiga e colete os bônus da nova Reforma Tributária pra fazer a economia circular girar.</p>
+    <div class="menu-actions">
+      <button class="btn block" onclick="goTo('instructions')">INICIAR MISSÃO</button>
+      <button class="btn secondary block" onclick="goTo('ranking')">VER RANKING DO DIA</button>
+    </div>
+  </section>
+
+  <!-- ===================== INSTRUÇÕES ===================== -->
+  <section class="screen" id="screen-instructions">
+    <div class="top-bar">
+      <div class="icon-btn" onclick="goTo('menu')">←</div>
+      <div class="brand-name" style="font-size:13px;">Como Jogar</div>
+      <div style="width:40px;"></div>
+    </div>
+
+    <div class="rules-box">
+      <div class="rule-row">
+        <div class="rule-icon red"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M7 7l1 13a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-13"/></svg></div>
+        <div><strong>Arraste os blocos vermelhos</strong> (Burocracia, Bitributação, Impostos em Cascata) até a lixeira antes que cheguem no forno.</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-icon green"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div><strong>Toque nos blocos verdes</strong> (Imposto Simplificado, Incentivo Verde, Crédito Justo) pra coletar o bônus da Reforma.</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-icon red"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></div>
+        <div>Se deixar um bloco vermelho chegar no forno, <strong>a esteira trava</strong> e você perde pontos.</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-icon blue"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        <div>Você tem <strong>40 segundos</strong>. Cada bônus coletado deixa a esteira mais rápida!</div>
+      </div>
+    </div>
+
+    <div style="flex:1;"></div>
+    <button class="btn block" onclick="startGame()">COMEÇAR JOGO</button>
+  </section>
+
+  <!-- ===================== JOGO ===================== -->
+  <section class="screen" id="screen-game">
+    <div class="game-bg"></div>
+
+    <div class="belt-area" id="beltArea">
+      <div class="lane"><div class="lane-track"></div></div>
+      <div class="lane"><div class="lane-track"></div></div>
+      <div class="lane"><div class="lane-track"></div></div>
+    </div>
+
+    <div class="furnace">
+      <div class="furnace-mouth"></div>
+      <div class="furnace-label">Forno · Economia Circular</div>
+    </div>
+
+    <div class="trash-zone" id="trashZone">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      <div class="trash-zone-label">Descarte</div>
+    </div>
+
+    <div class="jam-overlay" id="jamOverlay"></div>
+    <div class="jam-callout" id="jamCallout">Esteira Travada!</div>
+
+    <div class="hud-lcd">
+      <div class="lcd-panel">
+        <div class="lcd-label">Tempo</div>
+        <div class="lcd-value time" id="timeValue">00:40</div>
+      </div>
+      <div class="lcd-panel">
+        <div class="lcd-label">Pontos</div>
+        <div class="lcd-value score" id="scoreValue">0</div>
+      </div>
+      <div class="lcd-panel">
+        <div class="lcd-label">Ritmo</div>
+        <div class="lcd-value speed" id="speedValue">x1.0</div>
+      </div>
+    </div>
+    <div class="ov-gear" id="gearBtn" onclick="exitGame()">✕</div>
+  </section>
+
+  <!-- ===================== RESULTADOS ===================== -->
+  <section class="screen" id="screen-results">
+    <div class="result-card">
+      <h2>MISSÃO CONCLUÍDA!</h2>
+      <div class="result-score" id="resultScore">0</div>
+      <div class="result-score-label">pontos</div>
+      <div class="result-stats">
+        <div class="rs-item bonus">
+          <div class="rs-val" id="resultBonus">0</div>
+          <div class="rs-lbl">Bônus</div>
+        </div>
+        <div class="rs-item descarte">
+          <div class="rs-val" id="resultDescarte">0</div>
+          <div class="rs-lbl">Descartes</div>
+        </div>
+        <div class="rs-item travas">
+          <div class="rs-val" id="resultTravas">0</div>
+          <div class="rs-lbl">Travas</div>
+        </div>
+      </div>
+      <div class="menu-actions">
+        <button class="btn block" onclick="startGame()">JOGAR NOVAMENTE</button>
+        <button class="btn secondary block" onclick="goTo('ranking')">VER RANKING</button>
+        <button class="btn secondary block" onclick="goTo('menu')">MENU PRINCIPAL</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RANKING ===================== -->
+  <section class="screen" id="screen-ranking">
+    <div class="top-bar">
+      <div class="icon-btn" onclick="goTo('menu')">←</div>
+      <div class="brand-name" style="font-size:13px;">Ranking do Dia</div>
+      <div style="width:40px;"></div>
+    </div>
+    <div class="ranking-list" id="rankingList"></div>
+    <div style="flex:1;"></div>
+    <button class="btn block" onclick="goTo('menu')" style="margin-top:2cqh;">VOLTAR AO MENU</button>
+  </section>
+</div>
+
+<script>
+/* =========================================================
+   NAVEGAÇÃO
+========================================================= */
+function goTo(key){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active','fade-in'));
+  const map = {
+    'menu':'screen-menu',
+    'instructions':'screen-instructions',
+    'game':'screen-game',
+    'results':'screen-results',
+    'ranking':'screen-ranking'
+  };
+  const el = document.getElementById(map[key]);
+  el.classList.add('active');
+  requestAnimationFrame(() => el.classList.add('fade-in'));
+  if(key === 'ranking') renderRanking();
+}
+
+function exitGame(){
+  stopGame(true);
+  goTo('menu');
+}
+
+/* =========================================================
+   CONTEÚDO DOS BLOCOS
+========================================================= */
+const RED_LABELS = ['Burocracia', 'Bitributação', 'Imposto em Cascata'];
+const GREEN_LABELS = ['Imposto Simplificado', 'Incentivo Verde', 'Crédito Justo'];
+
+const SCRAP_ICONS = [
+`<svg viewBox="0 0 100 100"><rect x="16" y="40" width="68" height="20" rx="4" fill="#9aa7ad" stroke="#3d4a52" stroke-width="4"/><circle cx="30" cy="50" r="7" fill="#3d4a52"/><circle cx="70" cy="50" r="7" fill="#3d4a52"/></svg>`,
+`<svg viewBox="0 0 100 100"><path d="M12 62 L20 44 Q24 38 32 38 L68 38 Q76 38 80 44 L88 62 L88 72 Q88 76 84 76 L16 76 Q12 76 12 72 Z" fill="#8a6a55" stroke="#3d2c22" stroke-width="3"/><circle cx="30" cy="76" r="8" fill="#2b2b2b"/><circle cx="70" cy="76" r="8" fill="#2b2b2b"/></svg>`,
+`<svg viewBox="0 0 100 100"><rect x="30" y="14" width="40" height="72" rx="6" fill="#c7d0d4" stroke="#4a555b" stroke-width="4"/><line x1="30" y1="46" x2="70" y2="46" stroke="#4a555b" stroke-width="3"/></svg>`
+];
+
+/* =========================================================
+   CONFIGURAÇÃO / ESTADO
+========================================================= */
+const GAME_DURATION = 40;
+const LANE_COUNT = 3;
+const BASE_FALL_MS = 4200;
+const SPAWN_INTERVAL = 950;
+const JAM_ENDS_GAME = false;   // combinado com o usuário: trava = penalidade temporária, nao game over. Facil de trocar pra true depois.
+const JAM_PENALTY = 30;
+const JAM_FREEZE_MS = 1200;
+const HIT_GOOD = 100;
+const HIT_DISCARD = 50;
+
+let state = null;
+let spawnTimer = null;
+let timerRAF = null;
+let scrapTimer = null;
+
+function freshState(){
+  return {
+    score:0,
+    bonus:0,
+    descarte:0,
+    travas:0,
+    timeLeft:GAME_DURATION,
+    startTime:0,
+    running:false,
+    jammed:false,
+    laneOccupied:[false,false,false],
+    activeTweens:new Set(),
+    itemSeq:0
+  };
+}
+
+function speedMultiplier(score){
+  return Math.min(2.2, 1 + score / 1400);
+}
+
+/* =========================================================
+   CICLO DO JOGO
+========================================================= */
+function startGame(){
+  state = freshState();
+  document.querySelectorAll('.belt-block, .scrap-decor').forEach(el => { gsap.killTweensOf(el); el.remove(); });
+  document.getElementById('jamOverlay').classList.remove('show');
+  document.getElementById('jamCallout').classList.remove('show');
+  updateHud();
+  goTo('game');
+
+  state.running = true;
+  state.startTime = performance.now();
+
+  spawnTimer = setInterval(spawnBlock, SPAWN_INTERVAL);
+  scrapTimer = setInterval(spawnScrapDecor, 650);
+  timerRAF = requestAnimationFrame(tickTimer);
+  setTimeout(spawnBlock, 200);
+}
+
+function stopGame(silent){
+  state && (state.running = false);
+  if(spawnTimer){ clearInterval(spawnTimer); spawnTimer = null; }
+  if(scrapTimer){ clearInterval(scrapTimer); scrapTimer = null; }
+  if(timerRAF){ cancelAnimationFrame(timerRAF); timerRAF = null; }
+  document.querySelectorAll('.belt-block, .scrap-decor').forEach(el => { gsap.killTweensOf(el); el.remove(); });
+  if(!silent && state) endGame();
+}
+
+function tickTimer(now){
+  if(!state || !state.running) return;
+  const elapsed = (now - state.startTime) / 1000;
+  const remaining = Math.max(0, GAME_DURATION - elapsed);
+  state.timeLeft = remaining;
+
+  const timeValueEl = document.getElementById('timeValue');
+  const mm = Math.floor(remaining / 60).toString().padStart(2,'0');
+  const ss = Math.floor(remaining % 60).toString().padStart(2,'0');
+  timeValueEl.textContent = `${mm}:${ss}`;
+  timeValueEl.classList.toggle('warn', remaining <= 10);
+
+  if(remaining <= 0){
+    stopGame(false);
+    return;
+  }
+  timerRAF = requestAnimationFrame(tickTimer);
+}
+
+function endGame(){
+  const finalScore = Math.max(0, Math.round(state.score));
+  document.getElementById('resultScore').textContent = finalScore;
+  document.getElementById('resultBonus').textContent = state.bonus;
+  document.getElementById('resultDescarte').textContent = state.descarte;
+  document.getElementById('resultTravas').textContent = state.travas;
+  saveRankingEntry(finalScore, state.bonus, state.descarte, state.travas);
+  goTo('results');
+}
+
+function updateHud(){
+  document.getElementById('scoreValue').textContent = Math.max(0, Math.round(state.score));
+  document.getElementById('speedValue').textContent = 'x' + speedMultiplier(state.score).toFixed(1);
+}
+
+/* =========================================================
+   SUCATA DECORATIVA (ambiente, nao interativa)
+========================================================= */
+function spawnScrapDecor(){
+  if(!state || !state.running || state.jammed) return;
+  const beltArea = document.getElementById('beltArea');
+  const rect = beltArea.getBoundingClientRect();
+  const lane = Math.floor(Math.random() * LANE_COUNT);
+  const laneW = rect.width / LANE_COUNT;
+
+  const el = document.createElement('div');
+  el.className = 'scrap-decor';
+  el.innerHTML = SCRAP_ICONS[Math.floor(Math.random() * SCRAP_ICONS.length)];
+  const size = laneW * 0.34;
+  el.style.width = size + 'px';
+  el.style.height = size + 'px';
+  const x = lane * laneW + (laneW - size) / 2;
+  el.style.left = x + 'px';
+  el.style.top = -size + 'px';
+
+  document.getElementById('screen-game').appendChild(el);
+
+  const mult = speedMultiplier(state.score);
+  const duration = (BASE_FALL_MS / 1000) / mult;
+  const targetY = rect.top - document.getElementById('screen-game').getBoundingClientRect().top + rect.height + size * 2;
+  const tween = gsap.to(el, {
+    top: targetY, duration, ease:'none',
+    onComplete: () => el.remove()
+  });
+  state.activeTweens.add(tween);
+  tween._cleanupRef = () => state.activeTweens.delete(tween);
+  tween.eventCallback('onComplete', () => { el.remove(); state.activeTweens.delete(tween); });
+}
+
+/* =========================================================
+   SPAWN DE BLOCOS INTERATIVOS
+========================================================= */
+function spawnBlock(){
+  if(!state || !state.running || state.jammed) return;
+
+  const freeLanes = [];
+  for(let i=0;i<LANE_COUNT;i++) if(!state.laneOccupied[i]) freeLanes.push(i);
+  if(freeLanes.length === 0) return;
+  const lane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+  state.laneOccupied[lane] = true;
+
+  const isGood = Math.random() < 0.55;
+  const label = isGood
+    ? GREEN_LABELS[Math.floor(Math.random()*GREEN_LABELS.length)]
+    : RED_LABELS[Math.floor(Math.random()*RED_LABELS.length)];
+
+  const beltArea = document.getElementById('beltArea');
+  const rect = beltArea.getBoundingClientRect();
+  const gameRect = document.getElementById('screen-game').getBoundingClientRect();
+  const laneW = rect.width / LANE_COUNT;
+  const laneLeftInGame = (rect.left - gameRect.left) + lane * laneW;
+
+  const id = 'blk-' + (state.itemSeq++);
+  const el = document.createElement('div');
+  el.className = 'belt-block ' + (isGood ? 'green' : 'red');
+  el.innerHTML = `<div class="bb-label">${label}</div>`;
+  el.dataset.id = id;
+  el.dataset.good = isGood ? '1' : '0';
+  el.dataset.lane = lane;
+
+  const blockW = laneW * 0.84;
+  el.style.width = blockW + 'px';
+  el.style.left = (laneLeftInGame + laneW * 0.08) + 'px';
+  el.style.top = (rect.top - gameRect.top - 60) + 'px';
+  document.getElementById('screen-game').appendChild(el);
+
+  const startY = rect.top - gameRect.top - 60;
+  const furnaceY = rect.top - gameRect.top + rect.height * 0.02;
+  const mult = speedMultiplier(state.score);
+  const duration = (BASE_FALL_MS / 1000) / mult;
+
+  const tween = gsap.fromTo(el,
+    { top: startY },
+    {
+      top: furnaceY,
+      duration, ease:'none',
+      onComplete: () => handleReachFurnace(el, isGood, lane, id)
+    }
+  );
+  el._tween = tween;
+  state.activeTweens.add(tween);
+
+  if(isGood){
+    el.addEventListener('pointerdown', () => resolveGood(el, lane, id));
+  } else {
+    attachDrag(el, lane, id);
+  }
+}
+
+function releaseLane(lane, id){
+  state.laneOccupied[lane] = false;
+}
+
+function handleReachFurnace(el, isGood, lane, id){
+  if(!el.isConnected) return;
+  releaseLane(lane, id);
+  state.activeTweens.delete(el._tween);
+  el.classList.add('resolved');
+  el.remove();
+  if(!isGood){
+    triggerJam();
+  }
+}
+
+function resolveGood(el, lane, id){
+  if(!state || !state.running || state.jammed) return;
+  if(!el.isConnected || el.classList.contains('resolved')) return;
+  el.classList.add('resolved');
+  el._tween && el._tween.kill();
+  state.activeTweens.delete(el._tween);
+  releaseLane(lane, id);
+
+  state.score += HIT_GOOD;
+  state.bonus++;
+  spawnFloatText(el, '+100 PTS', 'positive');
+  updateHud();
+
+  gsap.to(el, { scale:1.3, opacity:0, duration:0.3, ease:'back.in(1.5)', onComplete:() => el.remove() });
+}
+
+/* =========================================================
+   DRAG DOS BLOCOS VERMELHOS (pointer events, mesma logica do jogo 1)
+========================================================= */
+function attachDrag(el, lane, id){
+  let dragging = false;
+  let offsetX = 0, offsetY = 0;
+  const gameScreen = document.getElementById('screen-game');
+
+  el.addEventListener('pointerdown', (e) => {
+    if(!state || !state.running || state.jammed) return;
+    if(el.classList.contains('resolved')) return;
+    dragging = true;
+    el._tween && el._tween.pause();
+    el.classList.add('dragging');
+    el.setPointerCapture(e.pointerId);
+    const rect = el.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+  });
+
+  el.addEventListener('pointermove', (e) => {
+    if(!dragging) return;
+    const gameRect = gameScreen.getBoundingClientRect();
+    let x = e.clientX - gameRect.left - offsetX;
+    let y = e.clientY - gameRect.top - offsetY;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    checkTrashHover(el.getBoundingClientRect());
+  });
+
+  el.addEventListener('pointerup', () => {
+    if(!dragging) return;
+    dragging = false;
+    el.classList.remove('dragging');
+    clearTrashHover();
+
+    if(isOverTrash(el.getBoundingClientRect())){
+      resolveDiscard(el, lane, id);
+    } else {
+      el._tween && el._tween.resume();
+    }
+  });
+
+  el.addEventListener('pointercancel', () => {
+    if(dragging){
+      dragging = false;
+      el.classList.remove('dragging');
+      clearTrashHover();
+      el._tween && el._tween.resume();
+    }
+  });
+}
+
+function overlapRatio(itemRect, zoneRect){
+  const x = Math.max(0, Math.min(itemRect.right, zoneRect.right) - Math.max(itemRect.left, zoneRect.left));
+  const y = Math.max(0, Math.min(itemRect.bottom, zoneRect.bottom) - Math.max(itemRect.top, zoneRect.top));
+  const itemArea = itemRect.width * itemRect.height;
+  return itemArea > 0 ? (x * y) / itemArea : 0;
+}
+
+const DROP_OVERLAP_THRESHOLD = 0.25;
+
+function isOverTrash(itemRect){
+  const zoneRect = document.getElementById('trashZone').getBoundingClientRect();
+  return overlapRatio(itemRect, zoneRect) >= DROP_OVERLAP_THRESHOLD;
+}
+
+function checkTrashHover(itemRect){
+  document.getElementById('trashZone').classList.toggle('drag-over', isOverTrash(itemRect));
+}
+
+function clearTrashHover(){
+  document.getElementById('trashZone').classList.remove('drag-over');
+}
+
+function resolveDiscard(el, lane, id){
+  el.classList.add('resolved');
+  el._tween && el._tween.kill();
+  state.activeTweens.delete(el._tween);
+  releaseLane(lane, id);
+
+  state.score += HIT_DISCARD;
+  state.descarte++;
+  spawnFloatText(el, '+50 PTS', 'positive');
+  updateHud();
+
+  gsap.to(el, { scale:0.4, opacity:0, duration:0.28, ease:'back.in(1.5)', onComplete:() => el.remove() });
+}
+
+/* =========================================================
+   TRAVAMENTO DA ESTEIRA
+========================================================= */
+function triggerJam(){
+  if(!state || !state.running) return;
+  state.travas++;
+  state.score = Math.max(0, state.score - JAM_PENALTY);
+  updateHud();
+
+  const app = document.getElementById('app');
+  app.classList.remove('screen-shake');
+  void app.offsetWidth;
+  app.classList.add('screen-shake');
+
+  const overlay = document.getElementById('jamOverlay');
+  overlay.classList.remove('show'); void overlay.offsetWidth; overlay.classList.add('show');
+  const callout = document.getElementById('jamCallout');
+  callout.classList.remove('show'); void callout.offsetWidth; callout.classList.add('show');
+
+  if(JAM_ENDS_GAME){
+    stopGame(false);
+    return;
+  }
+
+  state.jammed = true;
+  if(spawnTimer){ clearInterval(spawnTimer); spawnTimer = null; }
+  if(scrapTimer){ clearInterval(scrapTimer); scrapTimer = null; }
+  state.activeTweens.forEach(t => t.pause());
+
+  setTimeout(() => {
+    if(!state || !state.running) return;
+    state.jammed = false;
+    state.activeTweens.forEach(t => t.resume());
+    spawnTimer = setInterval(spawnBlock, SPAWN_INTERVAL);
+    scrapTimer = setInterval(spawnScrapDecor, 650);
+  }, JAM_FREEZE_MS);
+}
+
+/* =========================================================
+   TEXTO FLUTUANTE
+========================================================= */
+function spawnFloatText(el, text, cls){
+  const gameScreen = document.getElementById('screen-game');
+  const gameRect = gameScreen.getBoundingClientRect();
+  const rect = el.getBoundingClientRect();
+  const ft = document.createElement('div');
+  ft.className = 'float-text ' + cls;
+  ft.textContent = text;
+  ft.style.left = (rect.left - gameRect.left + rect.width/2) + 'px';
+  ft.style.top = (rect.top - gameRect.top) + 'px';
+  ft.style.transform = 'translateX(-50%)';
+  gameScreen.appendChild(ft);
+  setTimeout(() => ft.remove(), 800);
+}
+
+/* =========================================================
+   RANKING
+========================================================= */
+const RANKING_KEY = 'reciclaTributoRanking';
+
+function todayKey(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function loadRanking(){
+  try{
+    const raw = localStorage.getItem(RANKING_KEY);
+    if(!raw) return { date: todayKey(), entries: [] };
+    const parsed = JSON.parse(raw);
+    if(parsed.date !== todayKey()) return { date: todayKey(), entries: [] };
+    return parsed;
+  } catch(e){
+    return { date: todayKey(), entries: [] };
+  }
+}
+
+function saveRankingEntry(score, bonus, descarte, travas){
+  const data = loadRanking();
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  data.entries.push({ score, bonus, descarte, travas, time });
+  data.entries.sort((a,b) => b.score - a.score);
+  data.entries = data.entries.slice(0, 10);
+  localStorage.setItem(RANKING_KEY, JSON.stringify(data));
+}
+
+function renderRanking(){
+  const data = loadRanking();
+  const listEl = document.getElementById('rankingList');
+  listEl.innerHTML = '';
+
+  if(data.entries.length === 0){
+    listEl.innerHTML = '<div class="empty-ranking">Nenhuma pontuação registrada hoje ainda.<br>Seja o primeiro a jogar!</div>';
+    return;
+  }
+
+  data.entries.forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.className = 'rank-row' + (i === 0 ? ' top1' : i === 1 ? ' top2' : i === 2 ? ' top3' : '');
+    row.innerHTML = `
+      <div class="rank-pos">${i+1}º</div>
+      <div class="rank-info">
+        <div class="rank-name">Agente da Reforma</div>
+        <div class="rank-time">${entry.time} · ${entry.bonus} bônus</div>
+      </div>
+      <div class="rank-score">${entry.score}</div>
+    `;
+    listEl.appendChild(row);
+  });
+}
+</script>
+</body>
+</html>
