@@ -245,9 +245,12 @@
   .lcd-value.score{ color:#ffe14d; text-shadow:0 0 10px rgba(255,225,77,0.75); }
   .lcd-value.speed{ color:#5fd4ff; text-shadow:0 0 10px rgba(95,212,255,0.75); font-size:clamp(16px,3cqh,22px); }
 
-  /* faixas verticais da esteira, onde os blocos caem */
+  /* faixas verticais da esteira, onde os blocos caem.
+     Comeca em 19% (e nao 15%) pra dar folga abaixo da barra do HUD: o bloco nasce
+     60px ACIMA do topo da esteira, entao com 15% ele aparecia encostando/atras dos
+     paineis no primeiro instante da queda. Termina em 78%, onde comeca o forno. */
   .belt-area{
-    position:absolute; left:0; right:0; top:15%; height:63%;
+    position:absolute; left:0; right:0; top:19%; height:59%;
     z-index:5; display:flex;
   }
   .lane{
