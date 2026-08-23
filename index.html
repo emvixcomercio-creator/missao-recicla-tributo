@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Missão Recicla Tributo | INESFA</title>
+<title>Operação Circular | INESFA</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <style>
   :root{
@@ -209,21 +209,37 @@
     box-shadow:0 10px 22px rgba(47,158,82,0.3);
   }
 
+  /* titulo do jogo, no alto da tela de jogo (mesma ideia dos jogos 1 e 2).
+     A esteira foi empurrada pra baixo dele - ver ESTEIRA.topo no script - pra
+     as placas nao nascerem por tras da arte do titulo. */
+  .game-logo{
+    position:absolute; z-index:20;
+    left:50%; top:1.2%;
+    transform:translateX(-50%);
+    width:52%; height:auto;
+    filter:drop-shadow(0 4px 10px rgba(0,0,0,0.55));
+    pointer-events:none;
+  }
+
   /* ===================== GAME SCREEN (fábrica de reciclagem) ===================== */
   #screen-game{ padding:0; overflow:hidden; }
 
   .game-bg{
     position:absolute; inset:0; z-index:0;
-    background:linear-gradient(180deg, var(--steel-darker) 0%, var(--steel-dark) 55%, var(--steel-dark) 100%);
+    background:url('assets/bg-game.png') center/cover no-repeat, #0b0e13;
   }
 
   /* barra horizontal no topo, ACIMA da esteira. Antes era uma coluna a esquerda
      que descia por cima da pista 1 - os blocos daquela pista passavam por tras
      dos paineis e ficavam invisiveis e impossiveis de pegar naquele trecho. */
+  /* O painel saiu do topo pra abrir espaco pro titulo do jogo. Foi pra coluna
+     da ESQUERDA, em cima das maquinas da arte: naquela altura a esteira e
+     estreita (ocupa so de 41% a 60% da largura), entao a coluna nao cobre
+     pista nenhuma nem a lixeira, que so comeca em 56% da altura. */
   .hud-lcd{
     position:absolute; z-index:20;
-    left:3%; right:3%; top:2.5%;
-    display:flex; flex-direction:row; gap:2cqw;
+    left:2.5%; top:20%; width:24%;
+    display:flex; flex-direction:column; gap:1.2cqh;
   }
   .lcd-panel{
     flex:1 1 0; min-width:0; text-align:center;
@@ -249,96 +265,114 @@
      Comeca em 19% (e nao 15%) pra dar folga abaixo da barra do HUD: o bloco nasce
      60px ACIMA do topo da esteira, entao com 15% ele aparecia encostando/atras dos
      paineis no primeiro instante da queda. Termina em 78%, onde comeca o forno. */
+  /* A esteira nao e mais desenhada por CSS: ela ja vem na arte do fundo, em
+     PERSPECTIVA (estreita no topo, larga embaixo). O JS posiciona os blocos
+     dentro desse trapezio - ver a constante ESTEIRA no script. A .belt-area
+     fica so como referencia de layout; as faixas riscadas sairam porque
+     brigavam com a esteira desenhada. */
   .belt-area{
-    position:absolute; left:0; right:0; top:19%; height:59%;
-    z-index:5; display:flex;
+    position:absolute; left:0; right:0; top:13.5%; height:51.6%;
+    z-index:5; pointer-events:none;
   }
-  .lane{
-    position:relative; flex:1 1 0; height:100%;
-    border-left:1px dashed rgba(255,255,255,0.08);
-  }
-  .lane:first-child{ border-left:none; }
-  .lane-track{
-    position:absolute; inset:0;
-    background-image:repeating-linear-gradient(180deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 3px, transparent 3px, transparent 34px);
-    animation:trackScroll 1s linear infinite;
-  }
-  @keyframes trackScroll{ from{ background-position:0 0; } to{ background-position:0 34px; } }
+  .lane{ display:none; }
+  .lane-track{ display:none; }
 
   /* forno, fixo no fim da esteira */
+  /* forno vem desenhado na arte (aceso, com o letreiro ECONOMIA CIRCULAR).
+     O elemento fica no DOM porque o resto do codigo o consulta, mas invisivel. */
   .furnace{
-    position:absolute; left:0; right:0; top:78%; height:14%;
-    z-index:6;
-    background:linear-gradient(180deg, var(--steel-darker), #000);
-    border-top:3px solid #000;
+    position:absolute; left:0; right:0; top:68.2%; height:19.8%;
+    z-index:6; background:none; border:none;
   }
-  .furnace-mouth{
-    position:absolute; left:12%; right:12%; top:14%; bottom:14%;
-    border-radius:50% / 60%;
-    background:radial-gradient(circle at 50% 40%, #fff2c0 0%, var(--ember) 32%, var(--ember-dark) 62%, #3a0f04 100%);
-    box-shadow:0 0 30px rgba(255,138,43,0.65), inset 0 0 20px rgba(0,0,0,0.5);
-    animation:furnaceGlow 1.6s ease-in-out infinite;
-  }
+  .furnace-mouth{ display:none; }
   @keyframes furnaceGlow{
     0%,100%{ filter:brightness(1); }
     50%{ filter:brightness(1.18); }
   }
-  .furnace-label{
-    position:absolute; left:0; right:0; bottom:2%;
-    text-align:center; font-size:clamp(9px,1.5cqh,11px);
-    font-weight:800; letter-spacing:2px; text-transform:uppercase;
-    color:#ffb974;
-  }
+  .furnace-label{ display:none; }
 
   /* lixeira fixa, alvo do arraste dos blocos vermelhos */
   /* fica na faixa de baixo, FORA da esteira (que termina em 78%). Antes ficava
      em cima da pista 1 e escondia os blocos que passavam por ali. */
+  /* A lata "SISTEMA ANTIGO" agora e uma camada propria por cima do fundo (que
+     veio sem ela). As medidas sao exatamente o buraco que ela deixou no fundo
+     original - x 10-245, y 1080-1440 de 1080x1920 - entao ela cai de volta no
+     lugar sem emenda visivel. Solta assim ela pode reagir: acende quando a peca
+     passa por cima e leva um tranco quando engole a peca. */
   .trash-zone{
-    position:absolute; left:3%; top:79.5%; width:30%; height:12.5%;
+    position:absolute; left:0.10%; top:56.25%; width:23.41%; height:18.75%;
     z-index:12;
-    border-radius:18px;
-    border:3px dashed rgba(255,45,85,0.55);
-    background:rgba(255,45,85,0.08);
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    transition:background .15s ease, border-color .15s ease, box-shadow .15s ease;
+    /* ancorado embaixo: a lata cheia e 2% mais alta que a vazia (o entulho
+       passa da borda), entao o entulho cresce PRA CIMA e o pe da lata nao
+       pula de lugar na hora da troca. */
+    background:url('assets/lixeira-vazia.png') center bottom/contain no-repeat;
+    transform-origin:50% 100%;
+    transition:filter .14s ease, transform .12s ease;
   }
-  .trash-zone svg{ width:34%; height:auto; color:#ff8a9a; }
-  .trash-zone-label{
-    font-size:clamp(9px,1.4cqh,11px); font-weight:800; letter-spacing:1px; text-transform:uppercase;
-    color:#ffb0bd; margin-top:0.3cqh;
-  }
+  .trash-zone svg{ display:none; }
+  .trash-zone-label{ display:none; }
+  /* drop-shadow e nao box-shadow: o brilho segue o CONTORNO da lata. Com
+     box-shadow viraria um retangulo aceso em volta dela - o mesmo erro que o
+     jogo 1 tinha no X vermelho. So funciona porque a lata veio recortada. */
   .trash-zone.drag-over{
-    background:rgba(255,45,85,0.22);
-    border-color:var(--red);
-    box-shadow:0 0 26px rgba(255,45,85,0.55), inset 0 0 20px rgba(255,45,85,0.3);
+    filter:drop-shadow(0 0 9px rgba(255,45,85,0.95)) drop-shadow(0 0 20px rgba(255,45,85,0.6)) brightness(1.12);
+    transform:scale(1.06);
+  }
+  .trash-zone.recebeu{ animation:lixeiraTranco .34s ease; }
+  /* a lata vai enchendo: troca de arte quando o jogador ja descartou o bastante */
+  .trash-zone.cheia{ background-image:url('assets/lixeira-cheia.png'); }
+  @keyframes lixeiraTranco{
+    0%  { transform:scale(1); }
+    32% { transform:scale(0.9) translateY(5px); }
+    66% { transform:scale(1.06); }
+    100%{ transform:scale(1); }
   }
 
   /* blocos interativos (verde = coletar, vermelho = descartar) */
+  /* Os blocos agora sao as placas desenhadas pelo cliente. O tamanho e a
+     posicao mudam a cada frame conforme descem a esteira em perspectiva -
+     nasce pequeno la em cima e chega grande na boca do forno. */
   .belt-block{
     position:absolute;
-    border-radius:14px;
-    padding:1.1cqh 3cqw;
-    text-align:center;
     z-index:11;
     cursor:pointer;
     touch-action:none;
-    box-shadow:0 6px 14px rgba(0,0,0,0.4);
+    background:none; border:none; padding:0;
+    /* nada de box-shadow: sobre a esteira escura ele desenhava um retangulo
+       claro em volta da placa, o mesmo problema que o jogo 1 teve com o X.
+       A sombra vai no proprio PNG, acompanhando o formato. */
+    filter:drop-shadow(0 5px 9px rgba(0,0,0,0.55));
+    animation:blocoEntra .3s ease-out;
   }
-  .belt-block .bb-label{
-    font-weight:800; font-size:clamp(11px,1.9cqh,13.5px); line-height:1.2;
-    text-transform:uppercase; letter-spacing:0.3px;
-  }
+  /* brilho pela cor da placa - verde chama, vermelho alerta. drop-shadow porque
+     precisa acompanhar os cantos arredondados da placa, nao a caixa. */
   .belt-block.green{
-    background:linear-gradient(160deg, #35d97a, #1f9e57);
-    border:2px solid #b9ffd6;
-    color:#04310f;
+    filter:drop-shadow(0 0 7px rgba(61,220,99,0.75)) drop-shadow(0 5px 9px rgba(0,0,0,0.55));
   }
   .belt-block.red{
-    background:linear-gradient(160deg, #ff5c72, #d81f3d);
-    border:2px solid #ffc7cf;
-    color:#3c0007;
+    filter:drop-shadow(0 0 7px rgba(255,60,80,0.8)) drop-shadow(0 5px 9px rgba(0,0,0,0.55));
   }
-  .belt-block.dragging{ box-shadow:0 14px 26px rgba(0,0,0,0.55); }
+  .belt-block img{
+    position:absolute; inset:0;
+    width:100%; height:100%; display:block;
+    object-fit:contain; pointer-events:none; user-select:none;
+  }
+  @keyframes blocoEntra{ from{ opacity:0; } to{ opacity:1; } }
+  /* o termo da reforma escrito por cima da placa lisa. O tamanho da fonte e
+     definido no JS, porque a placa encolhe conforme sobe a perspectiva - e ele
+     depende da palavra mais longa do termo, senao "SIMPLIFICADO" estoura a
+     placa enquanto "JUSTO" sobra espaco. */
+  .belt-block .bb-label{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    padding:0 9%;
+    text-align:center; line-height:1.14;
+    font-weight:900; text-transform:uppercase; letter-spacing:0.2px;
+    color:#fff;
+    text-shadow:0 2px 4px rgba(0,0,0,0.55);
+    pointer-events:none;
+  }
+  .belt-block.dragging{ filter:drop-shadow(0 14px 22px rgba(0,0,0,0.7)); }
   .belt-block.resolved{ pointer-events:none; }
 
   /* sucata decorativa ambiente, so visual, nao interativa */
@@ -346,7 +380,69 @@
     position:absolute; z-index:4; opacity:0.85;
     pointer-events:none;
   }
-  .scrap-decor svg{ width:100%; height:100%; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.4)); }
+  .scrap-decor img{
+    width:100%; height:100%; display:block;
+    object-fit:contain;
+    /* a sucata vem prateada e clara demais: sobre a esteira escura ela parecia
+       flutuar, nao passar por cima. brightness derruba o tom pro nivel da
+       esteira e o contraste devolve o desenho das pecas. */
+    filter:brightness(0.55) contrast(1.12) saturate(0.85)
+           drop-shadow(0 3px 7px rgba(0,0,0,0.6));
+  }
+
+  /* combo, no rodape da coluna do HUD */
+  .hud-combo{
+    margin-top:0.6cqh; text-align:center;
+    background:#0c1015; border-radius:12px; border:2px solid #2a333c;
+    padding:0.6cqh 1.2cqw;
+    box-shadow:inset 0 0 12px rgba(0,0,0,0.6), 0 6px 14px rgba(0,0,0,0.35);
+  }
+  .hud-combo-value{
+    font-family:'Courier New', Consolas, monospace; font-weight:900;
+    font-size:clamp(20px,4cqh,28px); line-height:1; color:#ffb020;
+    text-shadow:0 0 10px rgba(255,176,32,0.75);
+  }
+  .hud-combo-value.pulse{ animation:comboPulse .32s cubic-bezier(.2,.9,.3,1.4); }
+  @keyframes comboPulse{
+    0%{ transform:scale(1); }
+    35%{ transform:scale(1.45); color:#fff; }
+    100%{ transform:scale(1); }
+  }
+
+  /* aviso do evento de sobrecarga, no meio da tela */
+  /* comeca em 27% e nao em 0: a coluna do HUD ocupa ate 26.5% da largura e o
+     aviso passava por cima dela. Assim ele fica centralizado sobre a esteira. */
+  .surto-callout{
+    position:absolute; left:27%; right:2%; top:38%;
+    z-index:28; text-align:center; pointer-events:none;
+    opacity:0;
+  }
+  .surto-callout.show{ animation:surtoIn 1.5s cubic-bezier(.2,.9,.3,1.2) forwards; }
+  .surto-title{
+    display:block; font-weight:900; text-transform:uppercase; letter-spacing:2px;
+    font-size:clamp(26px,5.4cqh,38px); color:#ffce33;
+    -webkit-text-stroke:2px #5a2d00; paint-order:stroke fill;
+    text-shadow:0 0 22px rgba(255,206,51,0.9);
+  }
+  .surto-sub{
+    display:block; margin-top:0.5cqh; font-weight:800; text-transform:uppercase;
+    letter-spacing:3px; font-size:clamp(12px,2.2cqh,16px); color:#fff;
+    -webkit-text-stroke:1.2px #14243a; paint-order:stroke fill;
+  }
+  @keyframes surtoIn{
+    0%{ opacity:0; transform:scale(0.7); }
+    18%{ opacity:1; transform:scale(1.12); }
+    30%{ transform:scale(1); }
+    78%{ opacity:1; }
+    100%{ opacity:0; transform:scale(1.05); }
+  }
+  /* enquanto o evento roda, a tela ganha uma borda quente pulsando */
+  .surto-glow{
+    position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0;
+    box-shadow:inset 0 0 60px rgba(255,138,43,0.75), inset 0 0 160px rgba(255,90,10,0.45);
+  }
+  .surto-glow.on{ animation:surtoGlow 1.1s ease-in-out infinite; }
+  @keyframes surtoGlow{ 0%,100%{ opacity:0.45; } 50%{ opacity:1; } }
 
   .float-text{
     position:absolute; font-weight:900;
@@ -458,7 +554,7 @@
   <section class="screen active" id="screen-cadastro">
     <img class="menu-logo" src="assets/logo-inesfa.png" alt="INESFA - Instituto Nacional da Reciclagem">
     <h1 class="cadastro-title">Antes de jogar</h1>
-    <p class="cadastro-subtitle">Preencha seus dados para participar da Missão Recicla Tributo.</p>
+    <p class="cadastro-subtitle">Preencha seus dados para participar da Operação Circular.</p>
     <form class="cadastro-form" id="cadastroForm" novalidate>
       <div class="field-group">
         <label class="field-label" for="campoNome">Nome</label>
@@ -483,13 +579,13 @@
   <section class="screen" id="screen-menu">
     <img class="menu-logo" src="assets/logo-inesfa.png" alt="INESFA - Instituto Nacional da Reciclagem">
     <h1 class="game-title">
-      <span class="title-line blue">Missão</span>
-      <span class="title-line green">Recicla Tributo</span>
+      <span class="title-line blue">Operação</span>
+      <span class="title-line green">Circular</span>
     </h1>
     <div class="menu-divider"></div>
     <p class="game-subtitle">Limpe o caminho da reciclagem: descarte a burocracia antiga e colete os bônus da nova Reforma Tributária pra fazer a economia circular girar.</p>
     <div class="menu-actions">
-      <button class="btn block" onclick="handleIniciarDesafio()">INICIAR MISSÃO</button>
+      <button class="btn block" onclick="handleIniciarDesafio()">INICIAR OPERAÇÃO</button>
       <button class="btn secondary block" onclick="goTo('ranking')">VER RANKING DO DIA</button>
     </div>
   </section>
@@ -529,6 +625,8 @@
   <section class="screen" id="screen-game">
     <div class="game-bg"></div>
 
+    <img class="game-logo" src="assets/logo-jogo.png" alt="Operação Circular">
+
     <div class="belt-area" id="beltArea">
       <div class="lane"><div class="lane-track"></div></div>
       <div class="lane"><div class="lane-track"></div></div>
@@ -545,6 +643,11 @@
       <div class="trash-zone-label">Descarte</div>
     </div>
 
+    <div class="surto-glow" id="surtoGlow"></div>
+    <div class="surto-callout" id="surtoCallout">
+      <span class="surto-title">Sobrecarga!</span>
+      <span class="surto-sub">Pontos em dobro</span>
+    </div>
     <div class="jam-overlay" id="jamOverlay"></div>
     <div class="jam-callout" id="jamCallout">Esteira Travada!</div>
 
@@ -561,13 +664,17 @@
         <div class="lcd-label">Ritmo</div>
         <div class="lcd-value speed" id="speedValue">x1.0</div>
       </div>
+      <div class="hud-combo">
+        <div class="lcd-label">Combo</div>
+        <div class="hud-combo-value" id="comboValue">x1</div>
+      </div>
     </div>
   </section>
 
   <!-- ===================== RESULTADOS ===================== -->
   <section class="screen" id="screen-results">
     <div class="result-card">
-      <h2>MISSÃO CONCLUÍDA!</h2>
+      <h2>OPERAÇÃO CONCLUÍDA!</h2>
       <div class="result-score" id="resultScore">0</div>
       <div class="result-score-label">pontos</div>
       <div class="result-stats">
@@ -689,6 +796,8 @@ function cancelarVoltaAoInicio(){
 /* =========================================================
    CADASTRO (captura de lead antes do jogo)
 ========================================================= */
+/* as chaves guardam cadastros e ranking ja gravados nos testes; renomear
+   perderia esse historico sem ganho nenhum, entao ficam com o nome antigo */
 const CADASTRO_KEY = 'reciclaTributoCadastros';
 let jogadorRegistrado = false;
 let currentPlayerName = '';
@@ -762,21 +871,78 @@ const RED_LABELS = ['Burocracia', 'Bitributação', 'Imposto em Cascata'];
 const GREEN_LABELS = ['Imposto Simplificado', 'Incentivo Verde', 'Crédito Justo'];
 
 const SCRAP_ICONS = [
-`<svg viewBox="0 0 100 100"><rect x="16" y="40" width="68" height="20" rx="4" fill="#9aa7ad" stroke="#3d4a52" stroke-width="4"/><circle cx="30" cy="50" r="7" fill="#3d4a52"/><circle cx="70" cy="50" r="7" fill="#3d4a52"/></svg>`,
-`<svg viewBox="0 0 100 100"><path d="M12 62 L20 44 Q24 38 32 38 L68 38 Q76 38 80 44 L88 62 L88 72 Q88 76 84 76 L16 76 Q12 76 12 72 Z" fill="#8a6a55" stroke="#3d2c22" stroke-width="3"/><circle cx="30" cy="76" r="8" fill="#2b2b2b"/><circle cx="70" cy="76" r="8" fill="#2b2b2b"/></svg>`,
-`<svg viewBox="0 0 100 100"><rect x="30" y="14" width="40" height="72" rx="6" fill="#c7d0d4" stroke="#4a555b" stroke-width="4"/><line x1="30" y1="46" x2="70" y2="46" stroke="#4a555b" stroke-width="3"/></svg>`
+  'assets/sucata/sucata-04.png','assets/sucata/sucata-05.png','assets/sucata/sucata-06.png',
+  'assets/sucata/sucata-07.png','assets/sucata/sucata-08.png','assets/sucata/sucata-09.png',
+  'assets/sucata/sucata-10.png','assets/sucata/sucata-11.png','assets/sucata/sucata-12.png',
+  'assets/sucata/sucata-13.png','assets/sucata/sucata-14.png'
 ];
 
 /* =========================================================
    CONFIGURAÇÃO / ESTADO
 ========================================================= */
 const GAME_DURATION = 40;
-const LANE_COUNT = 3;
+/* a partir de quantos descartes a lata aparece cheia. 4 cai bem numa partida de
+   40s: enche na primeira metade e o jogador ve o proprio progresso na arte. */
+const DESCARTES_PRA_ENCHER = 4;
+const LANE_COUNT = 2;
+
+/* =========================================================
+   GEOMETRIA DA ESTEIRA (medida na arte do fundo)
+   A esteira desenhada e um trapezio em perspectiva. Medi na imagem original
+   de 1080x1920 e converti pro palco de 450x800 (fator 0.4167):
+       topo   y=260   largura 200px   ->  y=108  largura  83
+       base   y=1250  largura 530px   ->  y=521  largura 221
+       centro x=544 (constante)       ->  x=227
+   Tudo aqui esta em px do PALCO, que e o mesmo sistema de style.left/top.
+========================================================= */
+/* topo 158 e nao 108: a esteira desenhada comeca em 108, mas a arte do titulo
+   ocupa o alto da tela ate ~19%. Comecando em 158 as placas nascem logo abaixo
+   do titulo, em vez de aparecerem por tras dele. Custa 12% de percurso. */
+const ESTEIRA = { topo:158, base:521, centroX:227, largTopo:96, largBase:221 };
+
+/* devolve, para um progresso t (0 = topo da esteira, 1 = boca do forno),
+   a altura na tela, a largura da esteira ali e o quanto a peca deve encolher.
+
+   'escala' segue a perspectiva de verdade (0.38 no topo) e serve pra sucata.
+   'escalaPlaca' tem um PISO de 0.62: com a perspectiva pura a placa nascia com
+   94px de largura e o texto ficava ilegivel na metade de cima da tela - inutil
+   num totem, onde a pessoa precisa ler pra decidir. Com o piso ela nasce com
+   ~155px e ja da pra ler. Custa um pouco de realismo e paga em jogabilidade. */
+function geoEsteira(t){
+  t = Math.max(0, Math.min(1, t));
+  const larg = ESTEIRA.largTopo + (ESTEIRA.largBase - ESTEIRA.largTopo) * t;
+  return {
+    y: ESTEIRA.topo + (ESTEIRA.base - ESTEIRA.topo) * t,
+    larg,
+    escala: larg / ESTEIRA.largBase,
+    escalaPlaca: 0.62 + 0.38 * t,
+    /* a sucata tambem ganhou piso, mais suave que o da placa: com a perspectiva
+       crua ela nascia com 76px e sumia no meio da esteira. Fica menor que as
+       placas de proposito, pra ninguem tentar clicar nela achando que vale ponto. */
+    escalaSucata: 0.52 + 0.48 * t
+  };
+}
+
+/* centro horizontal de uma pista, naquele ponto da perspectiva */
+function centroDaPista(lane, larg){
+  const pistaW = larg / LANE_COUNT;
+  return ESTEIRA.centroX - larg / 2 + pistaW * (lane + 0.5);
+}
 const BASE_FALL_MS = 4200;
 const SPAWN_INTERVAL = 950;
 const JAM_ENDS_GAME = false;   // combinado com o usuário: trava = penalidade temporária, nao game over. Facil de trocar pra true depois.
 const JAM_PENALTY = 30;
 const JAM_FREEZE_MS = 1200;
+/* =========================================================
+   SOBRECARGA - o evento que dá o pico de adrenalina, irmão do
+   "Desmonte Total" do jogo 1: a esteira despeja mais peças, os pontos valem
+   o dobro e a tela reage. Sem isso a partida corre sempre no mesmo ritmo.
+========================================================= */
+const SURTO_INTERVALO = 14000;   /* de quanto em quanto tempo o evento volta */
+const SURTO_DURACAO   = 6000;    /* quanto tempo os pontos ficam dobrados */
+const SURTO_SPAWN_MS  = 420;     /* intervalo entre pecas durante o evento */
+const COMBO_MAX = 8;
+
 const HIT_GOOD = 100;
 const HIT_DISCARD = 50;
 
@@ -784,6 +950,7 @@ let state = null;
 let spawnTimer = null;
 let timerRAF = null;
 let scrapTimer = null;
+let surtoTimer = null;
 
 function freshState(){
   return {
@@ -795,7 +962,15 @@ function freshState(){
     startTime:0,
     running:false,
     jammed:false,
-    laneOccupied:[false,false,false],
+    combo:0,        /* acertos seguidos */
+    surto:false,    /* evento de sobrecarga rolando? */
+    /* quantas pecas cada pista tem agora. Era booleano, virou contador porque
+       na sobrecarga a esteira precisa aceitar 2 pecas por pista - com o limite
+       de 1 o evento quase nao entregava peca a mais e passava despercebido. */
+    laneOccupied:[0, 0],
+    /* progresso da ultima peca de cada pista, pra nao nascer placa em cima de
+       placa durante a sobrecarga (elas se cobriam e o texto ficava ilegivel) */
+    laneUltima:[null, null],
     activeTweens:new Set(),
     itemSeq:0
   };
@@ -812,6 +987,9 @@ function startGame(){
   state = freshState();
   document.querySelectorAll('.belt-block, .scrap-decor').forEach(el => { gsap.killTweensOf(el); el.remove(); });
   document.getElementById('jamOverlay').classList.remove('show');
+  document.getElementById('trashZone').classList.remove('cheia');
+  document.getElementById('surtoGlow').classList.remove('on');
+  document.getElementById('surtoCallout').classList.remove('show');
   document.getElementById('jamCallout').classList.remove('show');
   updateHud();
   goTo('game');
@@ -821,6 +999,7 @@ function startGame(){
 
   spawnTimer = setInterval(spawnBlock, SPAWN_INTERVAL);
   scrapTimer = setInterval(spawnScrapDecor, 650);
+  surtoTimer = setInterval(iniciarSurto, SURTO_INTERVALO);
   timerRAF = requestAnimationFrame(tickTimer);
   setTimeout(spawnBlock, 200);
 }
@@ -829,6 +1008,8 @@ function stopGame(silent){
   state && (state.running = false);
   if(spawnTimer){ clearInterval(spawnTimer); spawnTimer = null; }
   if(scrapTimer){ clearInterval(scrapTimer); scrapTimer = null; }
+  if(surtoTimer){ clearInterval(surtoTimer); surtoTimer = null; }
+  document.getElementById('surtoGlow').classList.remove('on');
   if(timerRAF){ cancelAnimationFrame(timerRAF); timerRAF = null; }
   document.querySelectorAll('.belt-block, .scrap-decor').forEach(el => { gsap.killTweensOf(el); el.remove(); });
   if(!silent && state) endGame();
@@ -866,6 +1047,55 @@ function endGame(){
 function updateHud(){
   document.getElementById('scoreValue').textContent = Math.max(0, Math.round(state.score));
   document.getElementById('speedValue').textContent = 'x' + speedMultiplier(state.score).toFixed(1);
+  const c = document.getElementById('comboValue');
+  const mult = comboMultiplicador();
+  if(c.textContent !== 'x' + mult){
+    c.textContent = 'x' + mult;
+    c.classList.remove('pulse'); void c.offsetWidth; c.classList.add('pulse');
+  }
+}
+
+/* combo cresce de 1 em 1 a cada 3 acertos seguidos e para em COMBO_MAX */
+function comboMultiplicador(){
+  return Math.min(COMBO_MAX, 1 + Math.floor((state.combo || 0) / 3));
+}
+
+/* quanto vale um acerto agora, juntando combo e evento */
+function valorDoAcerto(base){
+  return Math.round(base * comboMultiplicador() * (state.surto ? 2 : 1));
+}
+
+function tremerTela(){
+  const app = document.getElementById('app');
+  app.classList.remove('screen-shake'); void app.offsetWidth; app.classList.add('screen-shake');
+}
+
+/* =========================================================
+   EVENTO DE SOBRECARGA
+========================================================= */
+function iniciarSurto(){
+  if(!state || !state.running || state.jammed || state.surto) return;
+  state.surto = true;
+  tremerTela();
+  document.getElementById('surtoGlow').classList.add('on');
+  const av = document.getElementById('surtoCallout');
+  av.classList.remove('show'); void av.offsetWidth; av.classList.add('show');
+  /* a esteira passa a cuspir peca muito mais rapido */
+  clearInterval(spawnTimer);
+  spawnTimer = setInterval(spawnBlock, SURTO_SPAWN_MS);
+  /* rajada inicial pra sensacao de "abriu a comporta" */
+  for(let i = 1; i <= 3; i++) setTimeout(spawnBlock, i * 160);
+  setTimeout(encerrarSurto, SURTO_DURACAO);
+}
+
+function encerrarSurto(){
+  if(!state) return;
+  state.surto = false;
+  document.getElementById('surtoGlow').classList.remove('on');
+  if(state.running && !state.jammed){
+    clearInterval(spawnTimer);
+    spawnTimer = setInterval(spawnBlock, SPAWN_INTERVAL);
+  }
 }
 
 /* =========================================================
@@ -873,39 +1103,38 @@ function updateHud(){
 ========================================================= */
 function spawnScrapDecor(){
   if(!state || !state.running || state.jammed) return;
-  const beltArea = document.getElementById('beltArea');
-  /* offsetWidth/offsetTop sao medidas de LAYOUT (relativas ao #screen-game, que e
-     o offsetParent). getBoundingClientRect daria a medida VISUAL, ja multiplicada
-     pela escala do palco no totem - e como esses valores viram style.left/top em
-     px, usar o rect faria tudo nascer gigante e fora do lugar. */
-  const areaW = beltArea.offsetWidth;
-  const areaH = beltArea.offsetHeight;
-  const areaTop = beltArea.offsetTop;
-  const lane = Math.floor(Math.random() * LANE_COUNT);
-  const laneW = areaW / LANE_COUNT;
 
+  const lane = Math.floor(Math.random() * LANE_COUNT);
   const el = document.createElement('div');
   el.className = 'scrap-decor';
-  el.innerHTML = SCRAP_ICONS[Math.floor(Math.random() * SCRAP_ICONS.length)];
-  const size = laneW * 0.34;
-  el.style.width = size + 'px';
-  el.style.height = size + 'px';
-  const x = lane * laneW + (laneW - size) / 2;
-  el.style.left = x + 'px';
-  el.style.top = -size + 'px';
-
+  const img = SCRAP_ICONS[Math.floor(Math.random() * SCRAP_ICONS.length)];
+  el.innerHTML = '<img src="' + img + '" alt="" draggable="false">';
+  /* desvio lateral pra sucata nao descer sempre na mesma linha da placa */
+  const desvio = (Math.random() - 0.5) * 0.55;
+  const tamBase = (ESTEIRA.largBase / LANE_COUNT) * 0.88;
   document.getElementById('screen-game').appendChild(el);
+
+  const alvo = { t:0 };
+  function posiciona(){
+    const g = geoEsteira(alvo.t);
+    const w = tamBase * g.escalaSucata;
+    el.style.width  = w + 'px';
+    el.style.height = w + 'px';
+    el.style.left = (centroDaPista(lane, g.larg) + desvio * (g.larg / LANE_COUNT) - w/2) + 'px';
+    el.style.top  = (g.y - w/2) + 'px';
+    /* mais opaca do que antes porque o brilho ja foi derrubado no CSS:
+       escurecer E deixar transparente faria a peca sumir na esteira */
+    el.style.opacity = (0.82 + 0.18 * alvo.t).toFixed(2);
+  }
+  posiciona();
 
   const mult = speedMultiplier(state.score);
   const duration = (BASE_FALL_MS / 1000) / mult;
-  const targetY = areaTop + areaH + size * 2;
-  const tween = gsap.to(el, {
-    top: targetY, duration, ease:'none',
-    onComplete: () => el.remove()
+  const tween = gsap.to(alvo, {
+    t:1, duration, ease:'none', onUpdate: posiciona,
+    onComplete: () => { el.remove(); state.activeTweens.delete(tween); }
   });
   state.activeTweens.add(tween);
-  tween._cleanupRef = () => state.activeTweens.delete(tween);
-  tween.eventCallback('onComplete', () => { el.remove(); state.activeTweens.delete(tween); });
 }
 
 /* =========================================================
@@ -914,56 +1143,74 @@ function spawnScrapDecor(){
 function spawnBlock(){
   if(!state || !state.running || state.jammed) return;
 
+  const limite = state.surto ? 2 : 1;
+  /* a peca anterior daquela pista precisa ter descido pelo menos 45% do
+     percurso, senao as duas aparecem coladas e uma tapa o texto da outra */
+  const VAO_MINIMO = 0.45;
   const freeLanes = [];
-  for(let i=0;i<LANE_COUNT;i++) if(!state.laneOccupied[i]) freeLanes.push(i);
+  for(let i=0;i<LANE_COUNT;i++){
+    if(state.laneOccupied[i] >= limite) continue;
+    const ult = state.laneUltima[i];
+    if(ult && ult.t < VAO_MINIMO) continue;
+    freeLanes.push(i);
+  }
   if(freeLanes.length === 0) return;
-  const lane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
-  state.laneOccupied[lane] = true;
+  /* prefere a pista mais vazia, pra nao empilhar tudo de um lado */
+  freeLanes.sort((a,b) => state.laneOccupied[a] - state.laneOccupied[b]);
+  const menor = state.laneOccupied[freeLanes[0]];
+  const candidatas = freeLanes.filter(i => state.laneOccupied[i] === menor);
+  const lane = candidatas[Math.floor(Math.random() * candidatas.length)];
+  state.laneOccupied[lane]++;
 
   const isGood = Math.random() < 0.55;
   const label = isGood
     ? GREEN_LABELS[Math.floor(Math.random()*GREEN_LABELS.length)]
     : RED_LABELS[Math.floor(Math.random()*RED_LABELS.length)];
 
-  const beltArea = document.getElementById('beltArea');
-  /* medidas de LAYOUT, nao visuais - ver comentario em spawnScrapDecor */
-  const areaW = beltArea.offsetWidth;
-  const areaH = beltArea.offsetHeight;
-  const areaTop = beltArea.offsetTop;
-  const laneW = areaW / LANE_COUNT;
-  const laneLeftInGame = beltArea.offsetLeft + lane * laneW;
-
   const id = 'blk-' + (state.itemSeq++);
   const el = document.createElement('div');
   el.className = 'belt-block ' + (isGood ? 'green' : 'red');
-  el.innerHTML = `<div class="bb-label">${label}</div>`;
+  /* placa lisa do cliente + o termo da reforma escrito por cima */
+  el.innerHTML = '<img src="assets/placa-' + (isGood ? 'verde' : 'vermelha')
+               + '.png" alt="" draggable="false">'
+               + '<div class="bb-label">' + label + '</div>';
   el.dataset.id = id;
   el.dataset.good = isGood ? '1' : '0';
   el.dataset.lane = lane;
-
-  const blockW = laneW * 0.84;
-  el.style.width = blockW + 'px';
-  el.style.left = (laneLeftInGame + laneW * 0.08) + 'px';
-  el.style.top = (areaTop - 60) + 'px';
   document.getElementById('screen-game').appendChild(el);
 
-  const startY = areaTop - 60;
-  /* o bloco tem que percorrer a esteira INTEIRA ate a boca do forno (fim da
-     belt-area). Antes isso era areaH*0.02, ou seja 2% da esteira: os blocos
-     nasciam no topo e "chegavam ao forno" quase de imediato, sem nunca descer -
-     a esteira inteira ficava sem uso. */
-  const furnaceY = areaTop + areaH - el.offsetHeight;
+  /* a placa ocupa quase toda a pista la embaixo, e encolhe subindo a perspectiva */
+  const largBase = (ESTEIRA.largBase / LANE_COUNT) * 0.94;
+  const PROP = 0.95;   /* proporcao largura/altura das placas exportadas */
+  /* a maior palavra manda no tamanho da fonte: 0.62em e a largura media de um
+     caractere em negrito, e 0.80 e a largura util da placa depois do padding */
+  const maiorPalavra = label.split(' ').reduce((m,w) => Math.max(m, w.length), 0);
+  const alvo = { t:0 };
+  /* guarda junto o id: quando a peca sai da esteira, releaseLane usa o id pra
+     saber que essa referencia morreu. Sem isso o progresso dela congelava no
+     ponto em que foi coletada e a pista ficava bloqueada o resto da partida. */
+  state.laneUltima[lane] = { t:0, id, alvo };
+  Object.defineProperty(state.laneUltima[lane], 't', { get: () => alvo.t });
+  function posiciona(){
+    const g = geoEsteira(alvo.t);
+    const w = largBase * g.escalaPlaca;
+    const h = w / PROP;
+    el.style.width  = w + 'px';
+    el.style.height = h + 'px';
+    el.style.left = (centroDaPista(lane, g.larg) - w/2) + 'px';
+    el.style.top  = (g.y - h/2) + 'px';
+    el.style.fontSize = Math.min(w * 0.17, (w * 0.80) / (maiorPalavra * 0.62)) + 'px';
+  }
+  posiciona();
+  el._posiciona = posiciona;
+  el._alvo = alvo;
+
   const mult = speedMultiplier(state.score);
   const duration = (BASE_FALL_MS / 1000) / mult;
-
-  const tween = gsap.fromTo(el,
-    { top: startY },
-    {
-      top: furnaceY,
-      duration, ease:'none',
-      onComplete: () => handleReachFurnace(el, isGood, lane, id)
-    }
-  );
+  const tween = gsap.to(alvo, {
+    t:1, duration, ease:'none', onUpdate: posiciona,
+    onComplete: () => handleReachFurnace(el, isGood, lane, id)
+  });
   el._tween = tween;
   state.activeTweens.add(tween);
 
@@ -975,7 +1222,10 @@ function spawnBlock(){
 }
 
 function releaseLane(lane, id){
-  state.laneOccupied[lane] = false;
+  state.laneOccupied[lane] = Math.max(0, state.laneOccupied[lane] - 1);
+  /* essa era a ultima peca da pista? entao a pista esta livre pra proxima */
+  const ult = state.laneUltima[lane];
+  if(ult && ult.id === id) state.laneUltima[lane] = null;
 }
 
 function handleReachFurnace(el, isGood, lane, id){
@@ -986,6 +1236,11 @@ function handleReachFurnace(el, isGood, lane, id){
   el.remove();
   if(!isGood){
     triggerJam();
+  } else {
+    /* deixou o bonus queimar: nao penaliza em pontos, mas quebra a sequencia -
+       senao dava pra ignorar as placas verdes sem custo nenhum */
+    state.combo = 0;
+    updateHud();
   }
 }
 
@@ -997,9 +1252,11 @@ function resolveGood(el, lane, id){
   state.activeTweens.delete(el._tween);
   releaseLane(lane, id);
 
-  state.score += HIT_GOOD;
+  state.combo++;
+  const ganho = valorDoAcerto(HIT_GOOD);
+  state.score += ganho;
   state.bonus++;
-  spawnFloatText(el, '+100 PTS', 'positive');
+  spawnFloatText(el, '+' + ganho + ' PTS', 'positive');
   updateHud();
 
   gsap.to(el, { scale:1.3, opacity:0, duration:0.3, ease:'back.in(1.5)', onComplete:() => el.remove() });
@@ -1017,6 +1274,11 @@ function attachDrag(el, lane, id){
     if(!state || !state.running || state.jammed) return;
     if(el.classList.contains('resolved')) return;
     dragging = true;
+    /* mata a animacao de VOLTA que possa estar rodando. Sem isso, quem encosta
+       o dedo, solta e tenta de novo em seguida pega a peca no meio do retorno:
+       o gsap continua escrevendo left/top e a peca ignora o dedo, volta pra
+       esteira e cai no forno. Num totem isso acontece o tempo todo. */
+    gsap.killTweensOf(el);
     el._tween && el._tween.pause();
     el.classList.add('dragging');
     el.setPointerCapture(e.pointerId);
@@ -1048,7 +1310,7 @@ function attachDrag(el, lane, id){
     if(isOverTrash(el.getBoundingClientRect())){
       resolveDiscard(el, lane, id);
     } else {
-      el._tween && el._tween.resume();
+      voltarPraEsteira(el);
     }
   });
 
@@ -1057,8 +1319,24 @@ function attachDrag(el, lane, id){
       dragging = false;
       el.classList.remove('dragging');
       clearTrashHover();
-      el._tween && el._tween.resume();
+      voltarPraEsteira(el);
     }
+  });
+}
+
+/* Errou o arraste? A peca desliza de volta pro ponto da esteira onde ela estaria
+   e so entao a esteira volta a puxar. Sem isso ela daria um salto seco, porque
+   o tween reposiciona a peca no trapezio ja no primeiro frame depois do resume. */
+function voltarPraEsteira(el){
+  if(!el._alvo || !el._posiciona){ el._tween && el._tween.resume(); return; }
+  const g = geoEsteira(el._alvo.t);
+  const w = parseFloat(el.style.width) || 0;
+  const h = parseFloat(el.style.height) || 0;
+  gsap.to(el, {
+    left: (centroDaPista(Number(el.dataset.lane), g.larg) - w/2) + 'px',
+    top:  (g.y - h/2) + 'px',
+    duration: 0.22, ease:'power2.out',
+    onComplete: () => { el._tween && el._tween.resume(); }
   });
 }
 
@@ -1090,10 +1368,20 @@ function resolveDiscard(el, lane, id){
   state.activeTweens.delete(el._tween);
   releaseLane(lane, id);
 
-  state.score += HIT_DISCARD;
+  state.combo++;
+  const ganho = valorDoAcerto(HIT_DISCARD);
+  state.score += ganho;
   state.descarte++;
-  spawnFloatText(el, '+50 PTS', 'positive');
+  spawnFloatText(el, '+' + ganho + ' PTS', 'positive');
   updateHud();
+
+  /* a lata engole a peca, leva um tranco e vai enchendo conforme o jogo anda */
+  const lata = document.getElementById('trashZone');
+  if(state.descarte >= DESCARTES_PRA_ENCHER) lata.classList.add('cheia');
+  lata.classList.remove('recebeu');
+  void lata.offsetWidth;            /* reinicia a animacao se vier peca em sequencia */
+  lata.classList.add('recebeu');
+  setTimeout(() => lata.classList.remove('recebeu'), 360);
 
   gsap.to(el, { scale:0.4, opacity:0, duration:0.28, ease:'back.in(1.5)', onComplete:() => el.remove() });
 }
@@ -1104,6 +1392,7 @@ function resolveDiscard(el, lane, id){
 function triggerJam(){
   if(!state || !state.running) return;
   state.travas++;
+  state.combo = 0;          /* travou: perde a sequencia */
   state.score = Math.max(0, state.score - JAM_PENALTY);
   updateHud();
 
