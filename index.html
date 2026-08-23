@@ -585,7 +585,7 @@
         </div>
       </div>
       <div class="menu-actions">
-        <button class="btn block" onclick="startGame()">JOGAR NOVAMENTE</button>
+        <button class="btn block" onclick="proximoJogador()">PRÓXIMO JOGADOR</button>
         <button class="btn secondary block" onclick="goTo('ranking')">VER RANKING</button>
         <button class="btn secondary block" onclick="goTo('menu')">MENU PRINCIPAL</button>
       </div>
@@ -645,7 +645,46 @@ function goTo(key){
   el.classList.add('active');
   requestAnimationFrame(() => el.classList.add('fade-in'));
   if(key === 'ranking') renderRanking();
+  // totem em estande: telas de fim de partida voltam sozinhas pro cadastro
+  if(key === 'results' || key === 'ranking') agendarVoltaAoInicio();
+  else cancelarVoltaAoInicio();
 }
+
+/* =========================================================
+   TOTEM EM ESTANDE - proximo jogador
+
+   Em estande o totem atende muita gente em sequencia, entao repetir a
+   partida com o mesmo cadastro nao gera lead novo, prende o totem enquanto
+   ha fila e distorce o ranking do dia (quem joga 7 vezes vence quem jogou 1).
+   Por isso o botao principal do resultado volta pro cadastro em vez de
+   reiniciar a partida.
+
+   E se ninguem encostar, o totem volta sozinho ao inicio: a pessoa vai
+   embora e a tela ficaria parada exibindo o nome dela, sem convidar
+   ninguem a jogar.
+========================================================= */
+const INATIVIDADE_MS = 25000;
+let timerInatividade = null;
+
+function proximoJogador(){
+  cancelarVoltaAoInicio();
+  jogadorRegistrado = false;
+  currentPlayerName = '';
+  goTo('cadastro');
+}
+
+function agendarVoltaAoInicio(){
+  cancelarVoltaAoInicio();
+  timerInatividade = setTimeout(proximoJogador, INATIVIDADE_MS);
+}
+
+function cancelarVoltaAoInicio(){
+  if(timerInatividade){ clearTimeout(timerInatividade); timerInatividade = null; }
+}
+
+// enquanto a pessoa estiver mexendo, o totem espera - so volta se parar mesmo
+['pointerdown','keydown'].forEach(ev =>
+  document.addEventListener(ev, () => { if(timerInatividade) agendarVoltaAoInicio(); }, true));
 
 /* =========================================================
    CADASTRO (captura de lead antes do jogo)
