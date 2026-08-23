@@ -39,23 +39,40 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:20px;
   }
 
-  /* ===================== SIMULADOR DE TOTEM (9:16) ===================== */
+  /* ===================== PALCO / TOTEM (9:16) =====================
+     O jogo e desenhado num "palco" fixo de 450x800 e depois ampliado por
+     inteiro (transform:scale no #stage, calculado em JS) ate preencher a tela
+     do totem, que e 1080x1920 em pe.
+
+     Escalar o palco inteiro (em vez de deixar o #app crescer) e proposital:
+     dezenas de medidas usam clamp(min-px, Ncqh, max-px), e se o container
+     crescesse todo texto ficaria travado no seu maximo em px enquanto o resto
+     cresceria, desproporcionalizando a tela. */
+  #stage{
+    width:450px;
+    height:800px;
+    flex:0 0 auto;
+    transform-origin:center center;
+  }
   #app{
     position:relative;
-    width:min(450px, calc(100vw - 40px), calc((100vh - 40px) * 9 / 16));
-    height:min(800px, calc(100vh - 40px), calc((100vw - 40px) * 16 / 9));
+    width:100%;
+    height:100%;
     container-type:size;
     container-name:totem;
     overflow:hidden;
+    background:#0b0e13;
+  }
+  /* moldura decorativa: util pra visualizar o formato num monitor de computador,
+     mas atrapalha no totem real (cantos pretos) - some quando preenche a tela */
+  #stage:not(.fill) #app{
     border-radius:28px;
     box-shadow:
       0 0 0 10px #0b0b10,
       0 0 0 12px #232232,
       0 30px 90px rgba(0,0,0,0.75);
-    background:#0b0e13;
   }
 
   .screen{
@@ -200,10 +217,18 @@
     background:linear-gradient(180deg, var(--steel-darker) 0%, var(--steel-dark) 55%, var(--steel-dark) 100%);
   }
 
-  .hud-lcd{ position:absolute; z-index:20; left:4%; top:3%; display:flex; flex-direction:column; gap:1.1cqh; }
+  /* barra horizontal no topo, ACIMA da esteira. Antes era uma coluna a esquerda
+     que descia por cima da pista 1 - os blocos daquela pista passavam por tras
+     dos paineis e ficavam invisiveis e impossiveis de pegar naquele trecho. */
+  .hud-lcd{
+    position:absolute; z-index:20;
+    left:3%; right:3%; top:2.5%;
+    display:flex; flex-direction:row; gap:2cqw;
+  }
   .lcd-panel{
+    flex:1 1 0; min-width:0; text-align:center;
     background:#0c1015; border-radius:12px; border:2px solid #2a333c;
-    padding:0.7cqh 3cqw;
+    padding:0.7cqh 1.5cqw;
     box-shadow:inset 0 0 12px rgba(0,0,0,0.6), 0 6px 14px rgba(0,0,0,0.35);
   }
   .lcd-label{
@@ -219,15 +244,6 @@
   @keyframes lcdWarn{ 0%,100%{ opacity:1; } 50%{ opacity:0.35; } }
   .lcd-value.score{ color:#ffe14d; text-shadow:0 0 10px rgba(255,225,77,0.75); }
   .lcd-value.speed{ color:#5fd4ff; text-shadow:0 0 10px rgba(95,212,255,0.75); font-size:clamp(16px,3cqh,22px); }
-
-  .ov-gear{
-    position:absolute; right:4%; top:3%; width:9cqw; height:9cqw; border-radius:50%;
-    z-index:20; cursor:pointer;
-    background:rgba(0,0,0,0.35); border:2px solid rgba(255,255,255,0.4);
-    display:flex; align-items:center; justify-content:center;
-    font-size:clamp(16px,3cqh,20px); color:#fff;
-  }
-  .ov-gear:active{ background:rgba(0,0,0,0.55); }
 
   /* faixas verticais da esteira, onde os blocos caem */
   .belt-area{
@@ -272,8 +288,10 @@
   }
 
   /* lixeira fixa, alvo do arraste dos blocos vermelhos */
+  /* fica na faixa de baixo, FORA da esteira (que termina em 78%). Antes ficava
+     em cima da pista 1 e escondia os blocos que passavam por ali. */
   .trash-zone{
-    position:absolute; left:4%; top:66%; width:34%; height:14%;
+    position:absolute; left:3%; top:79.5%; width:30%; height:12.5%;
     z-index:12;
     border-radius:18px;
     border:3px dashed rgba(255,45,85,0.55);
@@ -430,6 +448,7 @@
 </style>
 </head>
 <body>
+<div id="stage">
 <div id="app">
 
   <!-- ===================== CADASTRO ===================== -->
@@ -540,7 +559,6 @@
         <div class="lcd-value speed" id="speedValue">x1.0</div>
       </div>
     </div>
-    <div class="ov-gear" id="gearBtn" onclick="exitGame()">✕</div>
   </section>
 
   <!-- ===================== RESULTADOS ===================== -->
@@ -583,8 +601,30 @@
     <button class="btn block" onclick="goTo('menu')" style="margin-top:2cqh;">VOLTAR AO MENU</button>
   </section>
 </div>
+</div>
 
 <script>
+/* =========================================================
+   AJUSTE DE TELA (totem vertical 1080x1920, ou qualquer outra)
+   O palco tem sempre 450x800 por dentro; aqui so calculamos o quanto ele
+   precisa crescer pra preencher a tela, mantendo a proporcao.
+========================================================= */
+const STAGE_W = 450;
+const STAGE_H = 800;
+let stageScale = 1;
+
+function fitStage(){
+  const stage = document.getElementById('stage');
+  stageScale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+  stage.style.transform = 'scale(' + stageScale + ')';
+  /* ampliando de verdade = tela grande (totem): tira a moldura decorativa */
+  stage.classList.toggle('fill', stageScale > 1.05);
+}
+
+fitStage();
+window.addEventListener('resize', fitStage);
+window.addEventListener('orientationchange', fitStage);
+
 /* =========================================================
    NAVEGAÇÃO
 ========================================================= */
@@ -602,11 +642,6 @@ function goTo(key){
   el.classList.add('active');
   requestAnimationFrame(() => el.classList.add('fade-in'));
   if(key === 'ranking') renderRanking();
-}
-
-function exitGame(){
-  stopGame(true);
-  goTo('menu');
 }
 
 /* =========================================================
@@ -797,9 +832,15 @@ function updateHud(){
 function spawnScrapDecor(){
   if(!state || !state.running || state.jammed) return;
   const beltArea = document.getElementById('beltArea');
-  const rect = beltArea.getBoundingClientRect();
+  /* offsetWidth/offsetTop sao medidas de LAYOUT (relativas ao #screen-game, que e
+     o offsetParent). getBoundingClientRect daria a medida VISUAL, ja multiplicada
+     pela escala do palco no totem - e como esses valores viram style.left/top em
+     px, usar o rect faria tudo nascer gigante e fora do lugar. */
+  const areaW = beltArea.offsetWidth;
+  const areaH = beltArea.offsetHeight;
+  const areaTop = beltArea.offsetTop;
   const lane = Math.floor(Math.random() * LANE_COUNT);
-  const laneW = rect.width / LANE_COUNT;
+  const laneW = areaW / LANE_COUNT;
 
   const el = document.createElement('div');
   el.className = 'scrap-decor';
@@ -815,7 +856,7 @@ function spawnScrapDecor(){
 
   const mult = speedMultiplier(state.score);
   const duration = (BASE_FALL_MS / 1000) / mult;
-  const targetY = rect.top - document.getElementById('screen-game').getBoundingClientRect().top + rect.height + size * 2;
+  const targetY = areaTop + areaH + size * 2;
   const tween = gsap.to(el, {
     top: targetY, duration, ease:'none',
     onComplete: () => el.remove()
@@ -843,10 +884,12 @@ function spawnBlock(){
     : RED_LABELS[Math.floor(Math.random()*RED_LABELS.length)];
 
   const beltArea = document.getElementById('beltArea');
-  const rect = beltArea.getBoundingClientRect();
-  const gameRect = document.getElementById('screen-game').getBoundingClientRect();
-  const laneW = rect.width / LANE_COUNT;
-  const laneLeftInGame = (rect.left - gameRect.left) + lane * laneW;
+  /* medidas de LAYOUT, nao visuais - ver comentario em spawnScrapDecor */
+  const areaW = beltArea.offsetWidth;
+  const areaH = beltArea.offsetHeight;
+  const areaTop = beltArea.offsetTop;
+  const laneW = areaW / LANE_COUNT;
+  const laneLeftInGame = beltArea.offsetLeft + lane * laneW;
 
   const id = 'blk-' + (state.itemSeq++);
   const el = document.createElement('div');
@@ -859,11 +902,15 @@ function spawnBlock(){
   const blockW = laneW * 0.84;
   el.style.width = blockW + 'px';
   el.style.left = (laneLeftInGame + laneW * 0.08) + 'px';
-  el.style.top = (rect.top - gameRect.top - 60) + 'px';
+  el.style.top = (areaTop - 60) + 'px';
   document.getElementById('screen-game').appendChild(el);
 
-  const startY = rect.top - gameRect.top - 60;
-  const furnaceY = rect.top - gameRect.top + rect.height * 0.02;
+  const startY = areaTop - 60;
+  /* o bloco tem que percorrer a esteira INTEIRA ate a boca do forno (fim da
+     belt-area). Antes isso era areaH*0.02, ou seja 2% da esteira: os blocos
+     nasciam no topo e "chegavam ao forno" quase de imediato, sem nunca descer -
+     a esteira inteira ficava sem uso. */
+  const furnaceY = areaTop + areaH - el.offsetHeight;
   const mult = speedMultiplier(state.score);
   const duration = (BASE_FALL_MS / 1000) / mult;
 
@@ -938,9 +985,13 @@ function attachDrag(el, lane, id){
 
   el.addEventListener('pointermove', (e) => {
     if(!dragging) return;
+    /* e.clientX/Y e o rect sao coordenadas VISUAIS (ja multiplicadas pela escala
+       do palco), mas style.left/top esperam medida de LAYOUT. Por isso a distancia
+       percorrida pelo dedo e dividida pela escala - sem isso, no totem o bloco
+       andaria mais rapido que o dedo e "escaparia" da mao do jogador. */
     const gameRect = gameScreen.getBoundingClientRect();
-    let x = e.clientX - gameRect.left - offsetX;
-    let y = e.clientY - gameRect.top - offsetY;
+    const x = (e.clientX - gameRect.left - offsetX) / stageScale;
+    const y = (e.clientY - gameRect.top - offsetY) / stageScale;
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     checkTrashHover(el.getBoundingClientRect());
@@ -1048,13 +1099,12 @@ function triggerJam(){
 ========================================================= */
 function spawnFloatText(el, text, cls){
   const gameScreen = document.getElementById('screen-game');
-  const gameRect = gameScreen.getBoundingClientRect();
-  const rect = el.getBoundingClientRect();
   const ft = document.createElement('div');
   ft.className = 'float-text ' + cls;
   ft.textContent = text;
-  ft.style.left = (rect.left - gameRect.left + rect.width/2) + 'px';
-  ft.style.top = (rect.top - gameRect.top) + 'px';
+  /* medidas de LAYOUT (offsetParent = #screen-game), nao visuais */
+  ft.style.left = (el.offsetLeft + el.offsetWidth/2) + 'px';
+  ft.style.top = el.offsetTop + 'px';
   ft.style.transform = 'translateX(-50%)';
   gameScreen.appendChild(ft);
   setTimeout(() => ft.remove(), 800);
