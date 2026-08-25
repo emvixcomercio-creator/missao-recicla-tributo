@@ -546,6 +546,51 @@
   .rank-time{ font-size:clamp(11px,1.6cqh,12px); color:#6b7c8c; font-weight:600; }
   .rank-score{ font-family:'Courier New', Consolas, monospace; font-weight:900; font-size:clamp(17px,2.8cqh,22px); color:var(--inesfa-green); }
   .empty-ranking{ color:#6b7c8c; text-align:center; padding:4cqh 0; font-size:15px; font-weight:600; }
+
+  /* ===================== MODO ATRACAO (demo) =====================
+     Parado no formulario de cadastro o totem nao chama ninguem. Depois de um
+     tempo sem toque o jogo se joga sozinho, com este aviso por cima.
+     pointer-events:none: o toque precisa chegar no documento pra derrubar a
+     demo, nao pode ser engolido pelo aviso. */
+  #demoOverlay{
+    position:absolute; inset:0; z-index:60;
+    display:none; pointer-events:none;
+    flex-direction:column; justify-content:flex-end; align-items:center;
+    gap:1.6cqh;
+    /* baixo o suficiente pra nao tapar a lixeira (alvo do jogo) nem a esteira:
+       sobra a base do forno, que e decorativa */
+    padding:0 4cqw 5cqh;
+  }
+  #demoOverlay.show{ display:flex; }
+  .demo-selo{
+    background:rgba(8,18,30,0.78);
+    border:2px solid rgba(255,255,255,0.28);
+    color:#fff; border-radius:999px;
+    padding:1.1cqh 4cqw;
+    font-size:clamp(13px,1.9cqh,17px); font-weight:800;
+    letter-spacing:.16em; text-transform:uppercase;
+    animation:demoSelo 2.6s ease-in-out infinite;
+  }
+  @keyframes demoSelo{ 0%,100%{opacity:.55} 50%{opacity:1} }
+  .demo-chamada{
+    background:linear-gradient(160deg,#ffb020,#ff7a00);
+    color:#20160a;
+    border-radius:22px;
+    padding:2.1cqh 6cqw;
+    max-width:80%;
+    font-size:clamp(20px,3.9cqh,31px); font-weight:900;
+    letter-spacing:.03em; text-transform:uppercase;
+    box-shadow:0 10px 30px rgba(0,0,0,.45), 0 0 32px rgba(255,176,32,.55);
+    animation:demoPulso 1.5s ease-in-out infinite;
+    text-align:center; line-height:1.15;
+  }
+  @keyframes demoPulso{
+    0%,100%{ transform:scale(1);   box-shadow:0 10px 30px rgba(0,0,0,.45), 0 0 26px rgba(255,176,32,.45); }
+    50%    { transform:scale(1.06); box-shadow:0 14px 38px rgba(0,0,0,.5),  0 0 46px rgba(255,176,32,.75); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .demo-selo, .demo-chamada{ animation:none; }
+  }
 </style>
 </head>
 <body>
@@ -625,6 +670,12 @@
 
   <!-- ===================== JOGO ===================== -->
   <section class="screen" id="screen-game">
+
+    <!-- aviso do modo atracao: so aparece quando o jogo esta se jogando sozinho -->
+    <div id="demoOverlay">
+      <div class="demo-selo">Demonstração</div>
+      <div class="demo-chamada">Toque para jogar</div>
+    </div>
     <div class="game-bg"></div>
 
     <img class="game-logo" src="assets/logo-jogo.png" alt="Operação Circular">
@@ -757,6 +808,14 @@ function goTo(key){
   // totem em estande: telas de fim de partida voltam sozinhas pro cadastro
   if(key === 'results' || key === 'ranking') agendarVoltaAoInicio();
   else cancelarVoltaAoInicio();
+
+  /* parado em qualquer tela de espera, o totem comeca a se jogar sozinho.
+     Sem isso, quem preenche o cadastro e vai embora deixa a maquina travada
+     no menu ou nas instrucoes ate alguem mexer - essas duas telas nao tinham
+     nenhum tempo limite. */
+  if(key === 'cadastro') agendarDemo(DEMO_OCIOSO_MS);
+  else if(key === 'menu' || key === 'instructions') agendarDemo(DEMO_LEITURA_MS);
+  else cancelarDemo();
 }
 
 /* =========================================================
@@ -774,6 +833,130 @@ function goTo(key){
 ========================================================= */
 const INATIVIDADE_MS = 25000;
 let timerInatividade = null;
+
+
+/* =========================================================
+   MODO ATRACAO - o jogo se jogando sozinho
+
+   Parado no cadastro o totem nao convida ninguem. Depois de DEMO_OCIOSO_MS
+   sem toque, a maquina comeca uma partida sozinha: um robo toca nos blocos
+   verdes e arrasta os vermelhos ate a lixeira, como se tivesse alguem ali.
+
+   No bloco verde o robo dispara um pointerdown de verdade, que cai no mesmo
+   handler do jogo. No vermelho ele anima o bloco ate a lixeira e chama
+   resolveDiscard direto - simular o dedo evento a evento daria o mesmo
+   resultado visual com muito mais chance de quebrar.
+
+   Como a demo sai do ar: qualquer toque ou tecla DE VERDADE. Eventos do robo
+   vem com isTrusted:false, e e so isso que separa um do outro.
+
+   A demo nunca grava nada: nao passa pelo cadastro e nao salva no ranking.
+========================================================= */
+const DEMO_OCIOSO_MS  = 20000;   // parado no cadastro
+/* menu e instrucoes pedem mais folga: ali a pessoa esta LENDO, e derrubar a
+   tela embaixo de quem esta lendo as regras e pior do que esperar um pouco */
+const DEMO_LEITURA_MS = 45000;
+const DEMO_PAUSA_MS   = 2200;
+let demoAtiva = false;
+let demoTimerOcioso = null, demoTimerBot = null, demoTimerRodada = null;
+
+/* guarda a janela da tela atual: quem mexe na tela quer adiar a demo, nao
+   trocar o tempo dela - por isso o listener chama agendarDemo() sem argumento */
+let demoJanela = DEMO_OCIOSO_MS;
+function agendarDemo(ms){
+  cancelarDemo();
+  if(ms) demoJanela = ms;
+  demoTimerOcioso = setTimeout(entrarNaDemo, demoJanela);
+}
+function cancelarDemo(){
+  if(demoTimerOcioso){ clearTimeout(demoTimerOcioso); demoTimerOcioso = null; }
+}
+
+function entrarNaDemo(){
+  if(demoAtiva) return;
+  cancelarDemo();
+  demoAtiva = true;
+  currentPlayerName = '';
+  document.getElementById('demoOverlay').classList.add('show');
+  goTo('game');
+  startGame();
+  demoTimerBot = setTimeout(botJoga, 900);
+}
+
+function sairDaDemo(){
+  if(!demoAtiva) return;
+  demoAtiva = false;
+  if(demoTimerBot){ clearTimeout(demoTimerBot); demoTimerBot = null; }
+  if(demoTimerRodada){ clearTimeout(demoTimerRodada); demoTimerRodada = null; }
+  document.getElementById('demoOverlay').classList.remove('show');
+  clearTrashHover();
+  stopGame(true);            // silencioso: nao chama endGame, nao salva ranking
+  goTo('cadastro');
+}
+
+function reiniciarDemo(){
+  if(!demoAtiva) return;
+  startGame();
+  demoTimerBot = setTimeout(botJoga, 900);
+}
+
+function botJoga(){
+  if(!demoAtiva) return;
+  const vivos = (sel) => Array.from(document.querySelectorAll(sel))
+    .filter(el => !el.classList.contains('resolved') && !el.classList.contains('dragging'));
+
+  /* vermelho primeiro: se chegar no forno trava a esteira e a demo fica feia */
+  const vermelhos = vivos('.belt-block.red[data-good="0"]');
+  const verdes    = vivos('.belt-block.green[data-good="1"]');
+
+  if(vermelhos.length){
+    arrastaAteALixeira(vermelhos[0]);
+  } else if(verdes.length && Math.random() > 0.15){
+    /* deixa passar um bonus de vez em quando: acertar 100% parece video gravado */
+    verdes[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles:true }));
+  }
+  demoTimerBot = setTimeout(botJoga, 420 + Math.random() * 380);
+}
+
+function arrastaAteALixeira(el){
+  const lane = parseInt(el.dataset.lane, 10);
+  const id   = el.dataset.id;
+  const tela = document.getElementById('screen-game');
+  const zona = document.getElementById('trashZone');
+
+  /* rect e medida VISUAL (ja multiplicada pela escala do palco) e style.left/top
+     e medida de LAYOUT - mesma conversao que o arraste de verdade faz */
+  const telaRect = tela.getBoundingClientRect();
+  const zonaRect = zona.getBoundingClientRect();
+  const destX = (zonaRect.left + zonaRect.width  / 2 - telaRect.left) / stageScale - el.offsetWidth  / 2;
+  const destY = (zonaRect.top  + zonaRect.height / 2 - telaRect.top ) / stageScale - el.offsetHeight / 2;
+
+  gsap.killTweensOf(el);
+  el._tween && el._tween.pause();        // congela o bloco na esteira
+  el.classList.add('dragging');
+  zona.classList.add('drag-over');
+
+  gsap.to(el, {
+    left: destX, top: destY, duration: 0.45, ease: 'power2.inOut',
+    onComplete: () => {
+      el.classList.remove('dragging');
+      clearTrashHover();
+      /* o bloco pode ter chegado no forno no meio do caminho - resolveDiscard
+         num elemento ja resolvido quebraria a contagem */
+      if(el.isConnected && demoAtiva && !el.classList.contains('resolved')){
+        resolveDiscard(el, lane, id);
+      }
+    }
+  });
+}
+
+/* qualquer toque humano derruba a demo na hora (isTrusted separa do robo) */
+['pointerdown','keydown'].forEach(ev =>
+  document.addEventListener(ev, (e) => {
+    if(!e.isTrusted) return;
+    if(demoAtiva){ e.stopPropagation(); sairDaDemo(); }
+    else if(demoTimerOcioso) agendarDemo();
+  }, true));
 
 function proximoJogador(){
   cancelarVoltaAoInicio();
@@ -1037,6 +1220,12 @@ function tickTimer(now){
 }
 
 function endGame(){
+  /* partida da demo: nao tem jogador, entao nao vai pro resultado nem entra no
+     ranking do dia - so emenda a proxima rodada e segue chamando publico */
+  if(demoAtiva){
+    demoTimerRodada = setTimeout(reiniciarDemo, DEMO_PAUSA_MS);
+    return;
+  }
   const finalScore = Math.max(0, Math.round(state.score));
   document.getElementById('resultScore').textContent = finalScore;
   document.getElementById('resultBonus').textContent = state.bonus;
@@ -1498,6 +1687,10 @@ function renderRanking(){
     listEl.appendChild(row);
   });
 }
+
+/* a tela de cadastro ja nasce ativa pelo HTML, sem passar pelo goTo - entao o
+   relogio da demo precisa comecar a contar aqui, no carregamento */
+agendarDemo(DEMO_OCIOSO_MS);
 </script>
 </body>
 </html>
