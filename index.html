@@ -3,6 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- ===================== TRAVA DE LICENCA =====================
+     O jogo fica hospedado publico no GitHub Pages e o cliente consegue abrir a
+     qualquer hora, entao sem isso nao ha como segurar o uso fora do que foi
+     combinado. Enquanto a licenca nao for liberada neste aparelho, a pagina
+     inteira e trocada por uma tela vazia - o jogo nem chega a montar e nao fica
+     nenhum texto explicando o porque.
+
+     LIBERAR NO APARELHO: toque 5x seguidas no canto superior esquerdo da tela
+     em branco (area invisivel de 84px) e digite o codigo. A liberacao fica
+     gravada no localStorage daquele aparelho.
+
+     BLOQUEAR DE NOVO: no console do aparelho, travaBloquear(). Remotamente,
+     basta trocar CODIGO_HASH aqui: toda liberacao antiga deixa de valer.
+
+     TROCAR O CODIGO: rode travaHash('NOVO-CODIGO') no console e cole o
+     resultado em CODIGO_HASH.
+
+     DESLIGAR A TRAVA: ATIVA para false.
+-->
+<script>
+(function(){
+  var TRAVA = {
+    ATIVA: true,
+    CODIGO_HASH: '453750f5',  // codigo atual: INESFA-LIB-2X7K
+    DIAS: 0                   // dias que a liberacao dura; 0 = sem prazo
+  };
+  var CHAVE = 'inesfaTravaLicenca';
+
+  function hash(txt){
+    txt = 'inesfa-trava|' + txt;
+    var x = 5381;
+    for (var i = 0; i < txt.length; i++) x = ((x << 5) + x + txt.charCodeAt(i)) >>> 0;
+    return x.toString(16);
+  }
+  window.travaHash = hash;
+  window.travaBloquear = function(){
+    try{ localStorage.removeItem(CHAVE); }catch(e){}
+    location.reload();
+  };
+
+  function liberado(){
+    if (!TRAVA.ATIVA) return true;
+    var reg = null;
+    try{ reg = JSON.parse(localStorage.getItem(CHAVE)); }catch(e){}
+    if (!reg || reg.h !== TRAVA.CODIGO_HASH) return false;
+    if (reg.ate && Date.now() > reg.ate) return false;
+    return true;
+  }
+  if (liberado()) return;
+
+  /* esconde o jogo ja durante a leitura do HTML: sem isso o totem pisca a
+     tela de cadastro antes do bloqueio aparecer */
+  var css = document.createElement('style');
+  css.textContent =
+    'body>*{display:none!important}body>#trava-tela{display:block!important}' +
+    '#trava-tela{position:fixed;inset:0;z-index:2147483647;background:#fff;' +
+    '-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}' +
+    '#trava-toque{position:absolute;top:0;left:0;width:84px;height:84px}';
+  document.head.appendChild(css);
+
+  function montar(){
+    /* tira o jogo do ar de vez: qualquer rotina dele que rode depois daqui
+       nao acha mais os elementos e morre sozinha */
+    while (document.body.firstChild) document.body.removeChild(document.body.firstChild);
+
+    var tela = document.createElement('div');
+    tela.id = 'trava-tela';
+    tela.innerHTML = '<div id="trava-toque"></div>';
+    document.body.appendChild(tela);
+
+    /* area invisivel no canto: e por onde a equipe libera o aparelho, sem
+       colocar nada na tela que entregue que existe uma trava */
+    var toques = 0, ultimo = 0;
+    document.getElementById('trava-toque').addEventListener('click', function(){
+      var agora = Date.now();
+      toques = (agora - ultimo < 1200) ? toques + 1 : 1;
+      ultimo = agora;
+      if (toques < 5) return;
+      toques = 0;
+      var codigo = prompt('Código de liberação:');
+      if (codigo === null) return;
+      if (hash(codigo.trim().toUpperCase()) !== TRAVA.CODIGO_HASH){
+        alert('Código inválido.');
+        return;
+      }
+      try{
+        localStorage.setItem(CHAVE, JSON.stringify({
+          h: TRAVA.CODIGO_HASH,
+          ate: TRAVA.DIAS ? Date.now() + TRAVA.DIAS * 86400000 : null
+        }));
+      }catch(e){
+        alert('Não foi possível gravar a liberação neste aparelho.');
+        return;
+      }
+      location.reload();
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar);
+  else montar();
+})();
+</script>
 <title>Operação Circular | INESFA</title>
 <!-- GSAP servido do proprio jogo, nao de CDN: numa feira o Wi-Fi cai e
      o jogo inteiro para, porque toda animacao depende dessa lib. -->
